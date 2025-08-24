@@ -1,4 +1,4 @@
-import { TextSelection } from '../types/index.js';
+import { TextSelection } from '../types/index';
 
 /**
  * TextSelector class handles mouse selection events and text extraction
@@ -15,14 +15,7 @@ export class TextSelector {
     this.bindEvents();
   }
 
-  /**
-   * Initialize event listeners for text selection
-   */
-  private bindEvents(): void {
-    document.addEventListener('mouseup', this.handleMouseUp.bind(this));
-    document.addEventListener('selectionchange', this.handleSelectionChange.bind(this));
-    document.addEventListener('keyup', this.handleKeyUp.bind(this));
-  }
+
 
   /**
    * Handle mouse up events to detect text selection
@@ -121,24 +114,35 @@ export class TextSelector {
    * Validate if the selected text is appropriate for translation
    */
   private isValidSelection(text: string): boolean {
-    // Check length constraints
-    if (text.length < 1 || text.length > 500) {
+    try {
+      // Check length constraints
+      if (text.length < 1 || text.length > 500) {
+        return false;
+      }
+
+      // Simplified validation - check if text contains letters
+      const hasLetters = /[a-zA-Z\u00C0-\u017F\u0400-\u04FF\u4e00-\u9fff]/.test(text);
+      if (!hasLetters) {
+        return false;
+      }
+
+      // Check if text is not just whitespace or special characters
+      const trimmedText = text.trim();
+      if (trimmedText.length === 0) {
+        return false;
+      }
+
+      // Reject selections that are mostly numbers or special characters
+      const letterCount = (text.match(/[a-zA-Z\u00C0-\u017F\u0400-\u04FF\u4e00-\u9fff]/g) || []).length;
+      if (letterCount < text.length * 0.2) {
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      console.warn('Error validating selection:', error);
       return false;
     }
-
-    // Check if text contains mostly valid characters (letters, numbers, basic punctuation, unicode)
-    const validCharRegex = /^[\w\s\-.,!?;:'"()[\]{}àáâãäåæçèéêëìíîïðñòóôõöøùúûüýþÿĀāĂăĄąĆćĈĉĊċČčĎďĐđĒēĔĕĖėĘęĚěĜĝĞğĠġĢģĤĥĦħĨĩĪīĬĭĮįİıĲĳĴĵĶķĸĹĺĻļĽľĿŀŁłŃńŅņŇňŉŊŋŌōŎŏŐőŒœŔŕŖŗŘřŚśŜŝŞşŠšŢţŤťŦŧŨũŪūŬŭŮůŰűŲųŴŵŶŷŸŹźŻżŽž]+$/u;
-    if (!validCharRegex.test(text)) {
-      return false;
-    }
-
-    // Reject selections that are mostly numbers or special characters
-    const letterCount = (text.match(/[a-zA-ZàáâãäåæçèéêëìíîïðñòóôõöøùúûüýþÿĀāĂăĄąĆćĈĉĊċČčĎďĐđĒēĔĕĖėĘęĚěĜĝĞğĠġĢģĤĥĦħĨĩĪīĬĭĮįİıĲĳĴĵĶķĸĹĺĻļĽľĿŀŁłŃńŅņŇňŉŊŋŌōŎŏŐőŒœŔŕŖŗŘřŚśŜŝŞşŠšŢţŤťŦŧŨũŪūŬŭŮůŰűŲųŴŵŶŷŸŹźŻżŽž\u0400-\u04FF\u4e00-\u9fff]/g) || []).length;
-    if (letterCount < text.length * 0.3) {
-      return false;
-    }
-
-    return true;
   }
 
   /**
@@ -279,16 +283,39 @@ export class TextSelector {
     }
   }
 
+  // Store bound methods for proper cleanup
+  private boundHandleMouseUp = this.handleMouseUp.bind(this);
+  private boundHandleSelectionChange = this.handleSelectionChange.bind(this);
+  private boundHandleKeyUp = this.handleKeyUp.bind(this);
+
+  /**
+   * Initialize event listeners for text selection
+   */
+  private bindEvents(): void {
+    try {
+      document.addEventListener('mouseup', this.boundHandleMouseUp);
+      document.addEventListener('selectionchange', this.boundHandleSelectionChange);
+      document.addEventListener('keyup', this.boundHandleKeyUp);
+    } catch (error) {
+      console.error('Failed to bind text selection events:', error);
+    }
+  }
+
   /**
    * Clean up event listeners
    */
   public destroy(): void {
-    document.removeEventListener('mouseup', this.handleMouseUp.bind(this));
-    document.removeEventListener('selectionchange', this.handleSelectionChange.bind(this));
-    document.removeEventListener('keyup', this.handleKeyUp.bind(this));
+    try {
+      document.removeEventListener('mouseup', this.boundHandleMouseUp);
+      document.removeEventListener('selectionchange', this.boundHandleSelectionChange);
+      document.removeEventListener('keyup', this.boundHandleKeyUp);
+    } catch (error) {
+      console.warn('Error removing event listeners:', error);
+    }
     
     if (this.selectionTimeout) {
       clearTimeout(this.selectionTimeout);
+      this.selectionTimeout = null;
     }
   }
 

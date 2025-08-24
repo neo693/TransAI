@@ -1,7 +1,7 @@
 // Core data models and interfaces for TransAI Browser Extension
 
 // API Provider types
-export type APIProvider = 'openai' | 'anthropic' | 'custom';
+export type APIProvider = 'openai' | 'anthropic' | 'gemini' | 'deepseek' | 'doubao' | 'qwen' | 'custom';
 
 // Language codes (ISO 639-1)
 export type LanguageCode = 'en' | 'es' | 'fr' | 'de' | 'it' | 'pt' | 'ru' | 'ja' | 'ko' | 'zh' | 'ar';
@@ -74,6 +74,8 @@ export interface CustomPrompts {
 export interface UserConfig {
   apiKey: string;
   apiProvider: APIProvider;
+  apiBaseUrl?: string; // For custom API endpoints
+  selectedModel?: string; // For model selection
   defaultTargetLanguage: LanguageCode;
   customPrompts: CustomPrompts;
   uiPreferences: UIPreferences;
@@ -136,7 +138,7 @@ export interface ExtensionStorage {
 }
 
 // Re-export message types
-export * from './messages.js';
+export * from './messages';
 
 // Re-export utilities
 export { DEFAULT_CONFIG, isCreateVocabularyItem } from './utilities';

@@ -8,7 +8,7 @@ import {
   type MessageRouterConfig,
   type ErrorMessage,
   type SuccessMessage
-} from '../types/messages.js';
+} from '../types/messages';
 
 /**
  * Error class for message routing errors

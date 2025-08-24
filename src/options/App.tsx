@@ -37,6 +37,26 @@ const API_PROVIDERS: { value: APIProvider; name: string; description: string }[]
     description: 'Claude models for accurate and contextual translations' 
   },
   { 
+    value: 'gemini', 
+    name: 'Google Gemini', 
+    description: 'Google\'s Gemini models for versatile AI capabilities' 
+  },
+  { 
+    value: 'deepseek', 
+    name: 'DeepSeek', 
+    description: 'DeepSeek models for efficient and accurate translations' 
+  },
+  { 
+    value: 'doubao', 
+    name: 'Doubao (豆包)', 
+    description: 'ByteDance\'s Doubao models for Chinese-optimized translations' 
+  },
+  { 
+    value: 'qwen', 
+    name: 'Qwen (通义千问)', 
+    description: 'Alibaba\'s Qwen models for multilingual translations' 
+  },
+  { 
     value: 'custom', 
     name: 'Custom API', 
     description: 'Use your own API endpoint' 
@@ -54,6 +74,48 @@ const OVERLAY_POSITIONS: { value: OverlayPosition; name: string }[] = [
   { value: 'top', name: 'Top' },
   { value: 'bottom', name: 'Bottom' }
 ];
+
+// Model options for different providers
+const MODEL_OPTIONS: Record<APIProvider, { value: string; name: string; description?: string }[]> = {
+  openai: [
+    { value: 'gpt-3.5-turbo', name: 'GPT-3.5 Turbo', description: 'Fast and cost-effective' },
+    { value: 'gpt-4', name: 'GPT-4', description: 'Most capable model' },
+    { value: 'gpt-4-turbo', name: 'GPT-4 Turbo', description: 'Latest GPT-4 with improved performance' },
+    { value: 'gpt-4o', name: 'GPT-4o', description: 'Optimized for speed and efficiency' },
+    { value: 'gpt-4o-mini', name: 'GPT-4o Mini', description: 'Lightweight version of GPT-4o' }
+  ],
+  anthropic: [
+    { value: 'claude-3-haiku-20240307', name: 'Claude 3 Haiku', description: 'Fast and lightweight' },
+    { value: 'claude-3-sonnet-20240229', name: 'Claude 3 Sonnet', description: 'Balanced performance' },
+    { value: 'claude-3-opus-20240229', name: 'Claude 3 Opus', description: 'Most powerful model' },
+    { value: 'claude-3-5-sonnet-20241022', name: 'Claude 3.5 Sonnet', description: 'Latest improved model' }
+  ],
+  gemini: [
+    { value: 'gemini-pro', name: 'Gemini Pro', description: 'Best for text tasks' },
+    { value: 'gemini-pro-vision', name: 'Gemini Pro Vision', description: 'Supports images' },
+    { value: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro', description: 'Enhanced capabilities' },
+    { value: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash', description: 'Fast and efficient' }
+  ],
+  deepseek: [
+    { value: 'deepseek-chat', name: 'DeepSeek Chat', description: 'General conversation model' },
+    { value: 'deepseek-coder', name: 'DeepSeek Coder', description: 'Optimized for code' }
+  ],
+  doubao: [
+    { value: 'doubao-lite-4k', name: 'Doubao Lite 4K', description: '4K context window' },
+    { value: 'doubao-lite-32k', name: 'Doubao Lite 32K', description: '32K context window' },
+    { value: 'doubao-lite-128k', name: 'Doubao Lite 128K', description: '128K context window' },
+    { value: 'doubao-pro-4k', name: 'Doubao Pro 4K', description: 'Pro version with 4K context' },
+    { value: 'doubao-pro-32k', name: 'Doubao Pro 32K', description: 'Pro version with 32K context' },
+    { value: 'doubao-pro-128k', name: 'Doubao Pro 128K', description: 'Pro version with 128K context' }
+  ],
+  qwen: [
+    { value: 'qwen-turbo', name: 'Qwen Turbo', description: 'Fast and efficient' },
+    { value: 'qwen-plus', name: 'Qwen Plus', description: 'Enhanced capabilities' },
+    { value: 'qwen-max', name: 'Qwen Max', description: 'Most powerful model' },
+    { value: 'qwen-max-longcontext', name: 'Qwen Max Long Context', description: 'Extended context window' }
+  ],
+  custom: []
+};
 
 function App() {
   const [config, setConfig] = useState<UserConfig | null>(null);
@@ -93,6 +155,19 @@ function App() {
       case 'anthropic':
         if (!apiKey.startsWith('sk-ant-')) {
           return 'Anthropic API key should start with "sk-ant-"';
+        }
+        break;
+      case 'gemini':
+        if (!apiKey.startsWith('AIza')) {
+          return 'Gemini API key should start with "AIza"';
+        }
+        break;
+      case 'deepseek':
+      case 'doubao':
+      case 'qwen':
+        // These providers typically use bearer tokens, no specific format validation
+        if (apiKey.length < 10) {
+          return 'API key seems too short';
         }
         break;
       case 'custom':
@@ -141,6 +216,19 @@ function App() {
       const apiKeyError = validateApiKey(config.apiKey, config.apiProvider);
       if (apiKeyError) {
         validationErrors.apiKey = apiKeyError;
+      }
+
+      // Validate custom API base URL
+      if (config.apiProvider === 'custom') {
+        if (!config.apiBaseUrl || !config.apiBaseUrl.trim()) {
+          validationErrors.apiBaseUrl = 'Base URL is required for custom API';
+        } else {
+          try {
+            new URL(config.apiBaseUrl);
+          } catch {
+            validationErrors.apiBaseUrl = 'Please enter a valid URL';
+          }
+        }
       }
       
       const translationPromptError = validatePrompt(config.customPrompts.translation, 'Translation');
@@ -443,6 +531,56 @@ function App() {
                       Your API key is stored securely and only used for translation requests.
                     </p>
                   </div>
+
+                  {/* Custom API Base URL */}
+                  {config.apiProvider === 'custom' && (
+                    <div>
+                      <label htmlFor="apiBaseUrl" className="block text-sm font-medium text-gray-700 mb-2">
+                        API Base URL
+                      </label>
+                      <input
+                        type="url"
+                        id="apiBaseUrl"
+                        value={config.apiBaseUrl || ''}
+                        onChange={(e) => handleConfigChange({ apiBaseUrl: e.target.value })}
+                        className={`block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 ${
+                          errors.apiBaseUrl ? 'border-red-300' : 'border-gray-300'
+                        }`}
+                        placeholder="https://api.example.com/v1/chat/completions"
+                      />
+                      {errors.apiBaseUrl && (
+                        <p className="mt-1 text-sm text-red-600">{errors.apiBaseUrl}</p>
+                      )}
+                      <p className="mt-1 text-sm text-gray-500">
+                        The base URL for your custom API endpoint.
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Model Selection */}
+                  {MODEL_OPTIONS[config.apiProvider].length > 0 && (
+                    <div>
+                      <label htmlFor="selectedModel" className="block text-sm font-medium text-gray-700 mb-2">
+                        Model
+                      </label>
+                      <select
+                        id="selectedModel"
+                        value={config.selectedModel || MODEL_OPTIONS[config.apiProvider][0]?.value || ''}
+                        onChange={(e) => handleConfigChange({ selectedModel: e.target.value })}
+                        className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      >
+                        {MODEL_OPTIONS[config.apiProvider].map(model => (
+                          <option key={model.value} value={model.value}>
+                            {model.name}
+                            {model.description && ` - ${model.description}`}
+                          </option>
+                        ))}
+                      </select>
+                      <p className="mt-1 text-sm text-gray-500">
+                        Choose the model that best fits your needs and budget.
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
             )}

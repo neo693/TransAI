@@ -32,10 +32,15 @@ export default defineConfig({
           if (assetInfo.name?.endsWith('.css')) return 'content/styles.css'
           return 'assets/[name].[ext]'
         }
+      },
+      external: (id) => {
+        // Don't externalize chrome APIs for content scripts
+        return false;
       }
     },
   },
   define: {
     'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'development'),
+    global: 'globalThis',
   },
 })

@@ -37,7 +37,7 @@ export function isNumberInRange(value: any, min: number, max: number): value is 
 
 // Validate API Provider
 export function isValidAPIProvider(value: any): value is APIProvider {
-  return typeof value === 'string' && ['openai', 'anthropic', 'custom'].includes(value);
+  return typeof value === 'string' && ['openai', 'anthropic', 'gemini', 'deepseek', 'doubao', 'qwen', 'custom'].includes(value);
 }
 
 // Validate Language Code

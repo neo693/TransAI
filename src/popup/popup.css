@@ -1,0 +1,107 @@
+/* Reset and base styles */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  width: 320px;
+  height: 600px;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  width: 320px;
+  height: 600px;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+}
+
+#root {
+  width: 320px;
+  height: 600px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Popup specific styles to prevent horizontal scrolling */
+.popup-container {
+  width: 320px;
+  height: 600px;
+  max-width: 320px;
+  max-height: 600px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Ensure all text content respects container width */
+.popup-container * {
+  box-sizing: border-box;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+/* Prevent horizontal overflow in flex containers */
+.popup-container .flex {
+  min-width: 0;
+}
+
+/* Ensure truncated text works properly */
+.popup-container .truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+/* Custom scrollbar for better UX */
+.popup-container ::-webkit-scrollbar {
+  width: 6px;
+}
+
+.popup-container ::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.popup-container ::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+.popup-container ::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}/* 
+Additional fixes for popup display */
+.popup-container > * {
+  flex-shrink: 0;
+}
+
+.popup-container .flex-1 {
+  flex: 1;
+  min-height: 0;
+}
+
+/* Ensure proper scrolling in content areas */
+.popup-container .overflow-y-auto {
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* Fix for potential layout issues */
+.popup-container .h-full {
+  height: 100%;
+}
+
+/* Prevent content from overflowing */
+.popup-container .space-y-2 > *,
+.popup-container .space-y-3 > *,
+.popup-container .space-y-4 > * {
+  max-width: 100%;
+}

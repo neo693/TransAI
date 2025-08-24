@@ -45,6 +45,8 @@ export enum StorageErrorCode {
 const DEFAULT_CONFIG: UserConfig = {
   apiKey: '',
   apiProvider: 'openai',
+  apiBaseUrl: '',
+  selectedModel: '',
   defaultTargetLanguage: 'en',
   customPrompts: {
     translation: 'Translate the following text to {targetLanguage} and provide 2-3 example sentences using the translated word or phrase:',
@@ -405,3 +407,22 @@ export class StorageManager {
 
 // Export singleton instance
 export const storageManager = StorageManager.getInstance();
+
+/**
+ * Create LLM client configuration from user config
+ */
+export function createLLMConfig(userConfig: UserConfig): {
+  provider: import('../types/index.js').APIProvider;
+  config: any;
+} {
+  const baseConfig = {
+    apiKey: userConfig.apiKey,
+    baseUrl: userConfig.apiBaseUrl,
+    model: userConfig.selectedModel
+  };
+
+  return {
+    provider: userConfig.apiProvider,
+    config: baseConfig
+  };
+}

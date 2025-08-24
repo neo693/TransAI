@@ -1,6 +1,6 @@
 // Background service worker for TransAI extension
 
-import { BackgroundService } from './background-service.js';
+import { BackgroundService } from './background-service';
 
 // Initialize background service
 const backgroundService = new BackgroundService();

@@ -1,13 +1,13 @@
 // Background service integration for TransAI Browser Extension
 
-import { messageRouter } from './message-router.js';
+import { messageRouter } from './message-router';
 import {
   storageManager,
   vocabularyStore,
   TranslationServiceFactory,
   ContentGenerationServiceFactory,
   LLMClientFactory
-} from '../services/index.js';
+} from '../services/index';
 import {
   MessageType,
   type ResponseMessage,
@@ -28,7 +28,7 @@ import {
   type UpdateStatisticsMessage,
   type UserConfig,
   type ExtensionStatistics
-} from '../types/index.js';
+} from '../types/index';
 
 /**
  * Error class for background service errors

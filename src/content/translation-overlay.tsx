@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createRoot, Root } from 'react-dom/client';
-import { TranslationResult, TextSelection, LanguageCode } from '../types/index.js';
-import { PronunciationButton } from '../components/pronunciation-button.js';
+import { TranslationResult, TextSelection, LanguageCode } from '../types/index';
+import { PronunciationButton } from '../components/pronunciation-button';
 
 interface TranslationOverlayProps {
   selection: TextSelection;
@@ -475,19 +475,25 @@ export class TranslationOverlayManager {
    * Show translation overlay for the given selection
    */
   public show(selection: TextSelection): void {
-    this.hide(); // Hide any existing overlay
-    
-    this.currentSelection = selection;
-    this.createOverlayContainer();
-    
-    if (this.overlayContainer && this.root) {
-      this.root.render(
-        <TranslationOverlay
-          selection={selection}
-          onClose={() => this.hide()}
-          onAddToVocabulary={this.onAddToVocabulary}
-        />
-      );
+    try {
+      this.hide(); // Hide any existing overlay
+      
+      this.currentSelection = selection;
+      this.createOverlayContainer();
+      
+      if (this.overlayContainer && this.root) {
+        this.root.render(
+          <TranslationOverlay
+            selection={selection}
+            onClose={() => this.hide()}
+            onAddToVocabulary={this.onAddToVocabulary}
+          />
+        );
+      }
+    } catch (error) {
+      console.error('Failed to show translation overlay:', error);
+      // Clean up on error
+      this.hide();
     }
   }
 
@@ -495,13 +501,23 @@ export class TranslationOverlayManager {
    * Hide the current overlay
    */
   public hide(): void {
-    if (this.root) {
-      this.root.unmount();
+    try {
+      if (this.root) {
+        this.root.unmount();
+        this.root = null;
+      }
+    } catch (error) {
+      console.warn('Error unmounting React root:', error);
       this.root = null;
     }
     
-    if (this.overlayContainer) {
-      this.overlayContainer.remove();
+    try {
+      if (this.overlayContainer) {
+        this.overlayContainer.remove();
+        this.overlayContainer = null;
+      }
+    } catch (error) {
+      console.warn('Error removing overlay container:', error);
       this.overlayContainer = null;
     }
     
@@ -540,7 +556,16 @@ export class TranslationOverlayManager {
     `;
     
     document.body.appendChild(this.overlayContainer);
-    this.root = createRoot(this.overlayContainer);
+    
+    try {
+      this.root = createRoot(this.overlayContainer);
+    } catch (error) {
+      console.error('Failed to create React root:', error);
+      // Fallback: remove container if React root creation fails
+      this.overlayContainer.remove();
+      this.overlayContainer = null;
+      throw error;
+    }
   }
 
   /**

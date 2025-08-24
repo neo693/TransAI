@@ -65,6 +65,22 @@ export interface AnthropicConfig extends ProviderConfig {
   model?: 'claude-3-haiku-20240307' | 'claude-3-sonnet-20240229' | 'claude-3-opus-20240229';
 }
 
+export interface GeminiConfig extends ProviderConfig {
+  model?: 'gemini-pro' | 'gemini-pro-vision' | 'gemini-1.5-pro' | 'gemini-1.5-flash';
+}
+
+export interface DeepSeekConfig extends ProviderConfig {
+  model?: 'deepseek-chat' | 'deepseek-coder';
+}
+
+export interface DoubaoConfig extends ProviderConfig {
+  model?: 'doubao-lite-4k' | 'doubao-lite-32k' | 'doubao-lite-128k' | 'doubao-pro-4k' | 'doubao-pro-32k' | 'doubao-pro-128k';
+}
+
+export interface QwenConfig extends ProviderConfig {
+  model?: 'qwen-turbo' | 'qwen-plus' | 'qwen-max' | 'qwen-max-longcontext';
+}
+
 export interface CustomConfig extends ProviderConfig {
   headers?: Record<string, string>;
 }
@@ -118,6 +134,21 @@ export class LLMClient implements ILLMClient {
             this.provider
           );
         }
+        break;
+      case 'gemini':
+        // Gemini API keys typically start with 'AIza'
+        if (!this.config.apiKey.startsWith('AIza')) {
+          throw new LLMError(
+            LLMErrorCode.INVALID_API_KEY,
+            'Gemini API key must start with "AIza"',
+            this.provider
+          );
+        }
+        break;
+      case 'deepseek':
+      case 'doubao':
+      case 'qwen':
+        // These providers typically use bearer tokens, no specific format validation
         break;
       case 'custom':
         if (!this.config.baseUrl) {
@@ -219,6 +250,70 @@ export class LLMClient implements ILLMClient {
           }
         };
 
+      case 'gemini':
+        return {
+          url: this.config.baseUrl || `https://generativelanguage.googleapis.com/v1beta/models/${this.config.model || 'gemini-pro'}:generateContent?key=${this.config.apiKey}`,
+          headers: baseHeaders,
+          body: {
+            contents: [{
+              parts: [{ text: request.prompt }]
+            }],
+            generationConfig: {
+              maxOutputTokens: request.maxTokens || this.config.maxTokens || 1000,
+              temperature: request.temperature ?? this.config.temperature ?? 0.7
+            }
+          }
+        };
+
+      case 'deepseek':
+        return {
+          url: this.config.baseUrl || 'https://api.deepseek.com/v1/chat/completions',
+          headers: {
+            ...baseHeaders,
+            'Authorization': `Bearer ${this.config.apiKey}`
+          },
+          body: {
+            model: this.config.model || 'deepseek-chat',
+            messages: [{ role: 'user', content: request.prompt }],
+            max_tokens: request.maxTokens || this.config.maxTokens || 1000,
+            temperature: request.temperature ?? this.config.temperature ?? 0.7
+          }
+        };
+
+      case 'doubao':
+        return {
+          url: this.config.baseUrl || 'https://ark.cn-beijing.volces.com/api/v3/chat/completions',
+          headers: {
+            ...baseHeaders,
+            'Authorization': `Bearer ${this.config.apiKey}`
+          },
+          body: {
+            model: this.config.model || 'doubao-lite-4k',
+            messages: [{ role: 'user', content: request.prompt }],
+            max_tokens: request.maxTokens || this.config.maxTokens || 1000,
+            temperature: request.temperature ?? this.config.temperature ?? 0.7
+          }
+        };
+
+      case 'qwen':
+        return {
+          url: this.config.baseUrl || 'https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation',
+          headers: {
+            ...baseHeaders,
+            'Authorization': `Bearer ${this.config.apiKey}`
+          },
+          body: {
+            model: this.config.model || 'qwen-turbo',
+            input: {
+              messages: [{ role: 'user', content: request.prompt }]
+            },
+            parameters: {
+              max_tokens: request.maxTokens || this.config.maxTokens || 1000,
+              temperature: request.temperature ?? this.config.temperature ?? 0.7
+            }
+          }
+        };
+
       case 'custom':
         const customConfig = this.config as CustomConfig;
         return {
@@ -250,10 +345,12 @@ export class LLMClient implements ILLMClient {
 
     switch (this.provider) {
       case 'openai':
+      case 'deepseek':
+      case 'doubao':
         if (!data.choices || !data.choices[0] || !data.choices[0].message) {
           throw new LLMError(
             LLMErrorCode.INVALID_RESPONSE,
-            'Invalid OpenAI response format',
+            `Invalid ${this.provider} response format`,
             this.provider
           );
         }
@@ -283,6 +380,42 @@ export class LLMClient implements ILLMClient {
             totalTokens: data.usage.input_tokens + data.usage.output_tokens
           } : undefined,
           model: data.model
+        };
+
+      case 'gemini':
+        if (!data.candidates || !data.candidates[0] || !data.candidates[0].content || !data.candidates[0].content.parts || !data.candidates[0].content.parts[0]) {
+          throw new LLMError(
+            LLMErrorCode.INVALID_RESPONSE,
+            'Invalid Gemini response format',
+            this.provider
+          );
+        }
+        return {
+          content: data.candidates[0].content.parts[0].text,
+          usage: data.usageMetadata ? {
+            promptTokens: data.usageMetadata.promptTokenCount,
+            completionTokens: data.usageMetadata.candidatesTokenCount,
+            totalTokens: data.usageMetadata.totalTokenCount
+          } : undefined,
+          model: this.config.model || 'gemini-pro'
+        };
+
+      case 'qwen':
+        if (!data.output || !data.output.choices || !data.output.choices[0] || !data.output.choices[0].message) {
+          throw new LLMError(
+            LLMErrorCode.INVALID_RESPONSE,
+            'Invalid Qwen response format',
+            this.provider
+          );
+        }
+        return {
+          content: data.output.choices[0].message.content,
+          usage: data.usage ? {
+            promptTokens: data.usage.input_tokens,
+            completionTokens: data.usage.output_tokens,
+            totalTokens: data.usage.total_tokens
+          } : undefined,
+          model: data.output.choices[0].message.model || this.config.model
         };
 
       case 'custom':
@@ -394,6 +527,22 @@ export class LLMClientFactory {
 
   static createAnthropic(config: AnthropicConfig): LLMClient {
     return new LLMClient('anthropic', config);
+  }
+
+  static createGemini(config: GeminiConfig): LLMClient {
+    return new LLMClient('gemini', config);
+  }
+
+  static createDeepSeek(config: DeepSeekConfig): LLMClient {
+    return new LLMClient('deepseek', config);
+  }
+
+  static createDoubao(config: DoubaoConfig): LLMClient {
+    return new LLMClient('doubao', config);
+  }
+
+  static createQwen(config: QwenConfig): LLMClient {
+    return new LLMClient('qwen', config);
   }
 
   static createCustom(config: CustomConfig): LLMClient {

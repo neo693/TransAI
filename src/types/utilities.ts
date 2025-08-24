@@ -42,6 +42,8 @@ export type UpdateUserConfig = Partial<UserConfig>;
 export const DEFAULT_CONFIG: Required<UserConfig> = {
   apiKey: '',
   apiProvider: 'openai',
+  apiBaseUrl: '',
+  selectedModel: '',
   defaultTargetLanguage: 'en',
   customPrompts: {
     translation: 'Translate the following text to {targetLanguage}. Provide the translation and 2-3 example sentences using the translated word or phrase in context.',

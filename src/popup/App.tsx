@@ -8,6 +8,8 @@ import type {
 } from '../types/index.js';
 import { MessageType } from '../types/index.js';
 import { PronunciationButton, InlinePronunciation } from '../components/pronunciation-button.js';
+import { storageManager } from '../services/storage.js';
+import { useTranslation } from '../hooks/useTranslation.js';
 
 // Navigation tabs
 type TabType = 'translate' | 'vocabulary' | 'generate' | 'settings';
@@ -395,7 +397,7 @@ const WordSelection: React.FC<WordSelectionProps> = ({
             return (
               <div
                 key={item.id}
-                className={`flex items-center justify-between p-2 rounded border cursor-pointer transition-colors ${
+                className={`flex items-center gap-2 p-2 rounded border cursor-pointer transition-colors ${
                   isSelected 
                     ? 'bg-blue-50 border-blue-200' 
                     : canSelect 
@@ -404,12 +406,12 @@ const WordSelection: React.FC<WordSelectionProps> = ({
                 }`}
                 onClick={() => canSelect && handleWordToggle(item.word)}
               >
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-gray-900 truncate">
+                <div className="flex-1 min-w-0 overflow-hidden">
+                  <div className="flex items-center gap-1 min-w-0">
+                    <span className="text-sm font-medium text-gray-900 truncate flex-shrink-0">
                       {item.word}
                     </span>
-                    <span className="text-xs text-gray-500">→</span>
+                    <span className="text-xs text-gray-500 flex-shrink-0">→</span>
                     <span className="text-sm text-gray-700 truncate">
                       {item.translation}
                     </span>
@@ -1054,8 +1056,10 @@ function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [vocabularyItems, setVocabularyItems] = useState<VocabularyItem[]>([]);
   const [filteredItems, setFilteredItems] = useState<VocabularyItem[]>([]);
-  const [loading, setLoading] = useState(false);
   const [translationResult, setTranslationResult] = useState<TranslationResult>();
+  
+  // Use translation hook
+  const { translate, loading, error: translationError, isConfigured } = useTranslation();
   const [currentPage, setCurrentPage] = useState(1);
   const [vocabularyFilter, setVocabularyFilter] = useState<VocabularyFilter>({});
   const [editingItem, setEditingItem] = useState<VocabularyItem | null>(null);
@@ -1144,33 +1148,20 @@ function App() {
 
   // Handle translation
   const handleTranslate = useCallback(async (text: string, targetLang: LanguageCode) => {
-    setLoading(true);
+    if (!isConfigured) {
+      alert('Please configure your API settings first');
+      setActiveTab('settings');
+      return;
+    }
+
     try {
-      // Mock translation for now
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      const mockResult: TranslationResult = {
-        originalText: text,
-        translatedText: `[Translated to ${targetLang}] ${text}`,
-        sourceLanguage: 'auto',
-        targetLanguage: targetLang,
-        examples: [
-          {
-            original: `Example with "${text}"`,
-            translated: `Example with "[Translated] ${text}"`
-          }
-        ],
-        confidence: 0.95,
-        timestamp: new Date()
-      };
-      
-      setTranslationResult(mockResult);
+      const result = await translate(text, targetLang);
+      setTranslationResult(result);
     } catch (error) {
       console.error('Translation failed:', error);
-    } finally {
-      setLoading(false);
+      alert('Translation failed. Please check your API configuration.');
     }
-  }, []);
+  }, [translate, isConfigured]);
 
   // Handle vocabulary item click
   const handleVocabularyItemClick = useCallback((item: VocabularyItem) => {
@@ -1281,9 +1272,9 @@ function App() {
   ];
 
   return (
-    <div className="w-80 h-96 bg-white flex flex-col">
+    <div className="popup-container bg-white flex flex-col overflow-hidden">
       {/* Header */}
-      <div className="px-4 py-3 border-b border-gray-200">
+      <div className="flex-shrink-0 px-4 py-3 border-b border-gray-200">
         <div className="flex items-center justify-between">
           <h1 className="text-lg font-semibold text-gray-900">TransAI</h1>
           <div className="text-xs text-gray-500">
@@ -1293,38 +1284,42 @@ function App() {
       </div>
 
       {/* Tab Navigation */}
-      <div className="flex border-b border-gray-200">
+      <div className="flex-shrink-0 flex border-b border-gray-200">
         {tabs.map((tab) => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`flex-1 px-3 py-2 text-xs font-medium text-center transition-colors ${
+            className={`flex-1 px-2 py-2 text-xs font-medium text-center transition-colors min-w-0 ${
               activeTab === tab.id
                 ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50'
                 : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
             }`}
           >
-            <span className="mr-1">{tab.icon}</span>
-            {tab.label}
+            <div className="flex items-center justify-center gap-1">
+              <span>{tab.icon}</span>
+              <span className="truncate">{tab.label}</span>
+            </div>
           </button>
         ))}
       </div>
 
       {/* Tab Content */}
-      <div className="flex-1 overflow-hidden">
+      <div className="flex-1 min-h-0 overflow-hidden">
         {activeTab === 'translate' && (
-          <div className="h-full p-4 overflow-y-auto">
-            <QuickTranslate
-              onTranslate={handleTranslate}
-              loading={loading}
-              result={translationResult}
-            />
+          <div className="h-full overflow-y-auto">
+            <div className="p-4">
+              <QuickTranslate
+                onTranslate={handleTranslate}
+                loading={loading}
+                result={translationResult}
+              />
+            </div>
           </div>
         )}
 
         {activeTab === 'vocabulary' && (
-          <div className="h-full flex flex-col">
-            <div className="p-4 border-b border-gray-100">
+          <div className="h-full flex flex-col min-h-0">
+            <div className="flex-shrink-0 p-4 border-b border-gray-100">
               <SearchBar
                 value={searchQuery}
                 onChange={setSearchQuery}
@@ -1344,19 +1339,21 @@ function App() {
               />
             </div>
             
-            <div className="flex-1 overflow-y-auto p-4">
-              <VocabularyList
-                items={paginatedItems}
-                onItemClick={handleVocabularyItemClick}
-                onDeleteItem={handleDeleteVocabularyItem}
-                onEditItem={handleEditVocabularyItem}
-                loading={loading}
-              />
+            <div className="flex-1 min-h-0 overflow-y-auto">
+              <div className="p-4">
+                <VocabularyList
+                  items={paginatedItems}
+                  onItemClick={handleVocabularyItemClick}
+                  onDeleteItem={handleDeleteVocabularyItem}
+                  onEditItem={handleEditVocabularyItem}
+                  loading={loading}
+                />
+              </div>
             </div>
 
             {/* Pagination */}
             {totalPages > 1 && (
-              <div className="p-4 border-t border-gray-100">
+              <div className="flex-shrink-0 p-4 border-t border-gray-100">
                 <div className="flex items-center justify-between text-xs text-gray-500">
                   <span>
                     Page {currentPage} of {totalPages}
@@ -1384,9 +1381,9 @@ function App() {
         )}
 
         {activeTab === 'generate' && (
-          <div className="h-full flex flex-col">
+          <div className="h-full flex flex-col min-h-0">
             {/* Generation Mode Tabs */}
-            <div className="flex border-b border-gray-200 px-4 pt-2">
+            <div className="flex-shrink-0 flex border-b border-gray-200 px-4 pt-2">
               <button
                 onClick={() => {
                   setGenerationMode('sentences');
@@ -1416,33 +1413,134 @@ function App() {
             </div>
 
             {/* Generation Content */}
-            <div className="flex-1 overflow-y-auto p-4">
-              {generationMode === 'sentences' ? (
-                <SentenceGeneration
-                  vocabularyItems={vocabularyItems}
-                  onGenerate={handleGenerateSentences}
-                  loading={contentGenerationLoading}
-                  generatedContent={generatedContent?.type === 'sentence' ? generatedContent : undefined}
-                  onSaveContent={handleSaveGeneratedContent}
-                />
-              ) : (
-                <ArticleGeneration
-                  vocabularyItems={vocabularyItems}
-                  onGenerate={handleGenerateArticle}
-                  loading={contentGenerationLoading}
-                  generatedContent={generatedContent?.type === 'article' ? generatedContent : undefined}
-                  onSaveContent={handleSaveGeneratedContent}
-                />
-              )}
+            <div className="flex-1 min-h-0 overflow-y-auto">
+              <div className="p-4">
+                {generationMode === 'sentences' ? (
+                  <SentenceGeneration
+                    vocabularyItems={vocabularyItems}
+                    onGenerate={handleGenerateSentences}
+                    loading={contentGenerationLoading}
+                    generatedContent={generatedContent?.type === 'sentence' ? generatedContent : undefined}
+                    onSaveContent={handleSaveGeneratedContent}
+                  />
+                ) : (
+                  <ArticleGeneration
+                    vocabularyItems={vocabularyItems}
+                    onGenerate={handleGenerateArticle}
+                    loading={contentGenerationLoading}
+                    generatedContent={generatedContent?.type === 'article' ? generatedContent : undefined}
+                    onSaveContent={handleSaveGeneratedContent}
+                  />
+                )}
+              </div>
             </div>
           </div>
         )}
 
         {activeTab === 'settings' && (
-          <div className="h-full p-4 overflow-y-auto">
-            <div className="text-center py-8">
-              <div className="text-sm text-gray-500 mb-2">Settings</div>
-              <div className="text-xs text-gray-400">Configuration options will be implemented in task 9</div>
+          <div className="h-full overflow-y-auto">
+            <div className="p-4">
+              <div className="space-y-4">
+                <div className="text-center">
+                  <div className="text-sm font-medium text-gray-700 mb-4">Settings</div>
+                  
+                  {/* Configuration Status */}
+                  <div className="mb-6 p-3 rounded-lg border">
+                    <div className="flex items-center justify-center space-x-2 mb-2">
+                      <div className={`w-2 h-2 rounded-full ${isConfigured ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                      <span className="text-sm font-medium">
+                        {isConfigured ? 'API Configured' : 'API Not Configured'}
+                      </span>
+                    </div>
+                    {translationError && (
+                      <div className="text-xs text-red-600 mb-2">{translationError}</div>
+                    )}
+                    {!isConfigured && (
+                      <div className="text-xs text-gray-500">
+                        Configure your API settings to enable translation features
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* Quick Settings Options */}
+                  <div className="space-y-3 mb-6">
+                    <button
+                      onClick={() => {
+                        chrome.runtime.openOptionsPage();
+                      }}
+                      className="w-full flex items-center justify-between p-3 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors"
+                    >
+                      <div className="flex items-center space-x-3">
+                        <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
+                          <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                          </svg>
+                        </div>
+                        <div className="text-left min-w-0 flex-1">
+                          <div className="text-sm font-medium text-gray-900">Advanced Settings</div>
+                          <div className="text-xs text-gray-500">API keys, prompts, and preferences</div>
+                        </div>
+                      </div>
+                      <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </button>
+                  </div>
+
+                  {/* Quick Actions */}
+                  <div className="text-left">
+                    <div className="text-xs font-medium text-gray-600 mb-2">Quick Actions</div>
+                    <div className="space-y-2">
+                      <button
+                        onClick={async () => {
+                          try {
+                            const vocabulary = await storageManager.getVocabulary();
+                            const content = JSON.stringify(vocabulary, null, 2);
+                            const blob = new Blob([content], { type: 'application/json' });
+                            const url = URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = `transai-vocabulary-${new Date().toISOString().split('T')[0]}.json`;
+                            document.body.appendChild(a);
+                            a.click();
+                            document.body.removeChild(a);
+                            URL.revokeObjectURL(url);
+                          } catch (error) {
+                            console.error('Export failed:', error);
+                          }
+                        }}
+                        className="w-full flex items-center justify-between p-2 text-sm text-gray-700 hover:bg-gray-50 rounded border border-gray-200"
+                      >
+                        <span className="truncate">Export Vocabulary</span>
+                        <svg className="w-4 h-4 text-gray-400 flex-shrink-0 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                      </button>
+                      
+                      <button
+                        onClick={async () => {
+                          if (confirm('Are you sure you want to clear all vocabulary? This action cannot be undone.')) {
+                            try {
+                              await storageManager.setVocabulary([]);
+                              // Refresh vocabulary display if needed
+                              window.location.reload();
+                            } catch (error) {
+                              console.error('Clear failed:', error);
+                            }
+                          }
+                        }}
+                        className="w-full flex items-center justify-between p-2 text-sm text-red-600 hover:bg-red-50 rounded border border-red-200"
+                      >
+                        <span className="truncate">Clear All Vocabulary</span>
+                        <svg className="w-4 h-4 text-red-400 flex-shrink-0 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         )}

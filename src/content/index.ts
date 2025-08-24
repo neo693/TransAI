@@ -1,7 +1,7 @@
 // Content script for TransAI extension
-import { TextSelector } from './text-selector.js';
-import { TranslationOverlayManager } from './translation-overlay.js';
-import { TextSelection } from '../types/index.js';
+import { TextSelector } from './text-selector';
+import { TranslationOverlayManager } from './translation-overlay';
+import { TextSelection } from '../types/index';
 
 console.log('TransAI content script loaded');
 
@@ -12,19 +12,34 @@ let overlayManager: TranslationOverlayManager | null = null;
 function initializeContentScript() {
   console.log('Initializing TransAI content script on:', window.location.href);
   
-  // Load content script styles
-  loadContentStyles();
-  
-  // Test communication with background script
-  chrome.runtime.sendMessage({ type: 'PING' }, (response) => {
-    if (response?.success) {
-      console.log('Content script connected to background service worker');
+  try {
+    // Load content script styles
+    loadContentStyles();
+    
+    // Test communication with background script
+    chrome.runtime.sendMessage({ type: 'PING' }, (response) => {
+      if (chrome.runtime.lastError) {
+        console.error('Failed to connect to background script:', chrome.runtime.lastError);
+        return;
+      }
       
-      // Initialize text selection and overlay handling
-      initializeTextSelection();
-      initializeOverlayManager();
-    }
-  });
+      if (response?.success) {
+        console.log('Content script connected to background service worker');
+        
+        try {
+          // Initialize text selection and overlay handling
+          initializeTextSelection();
+          initializeOverlayManager();
+        } catch (error) {
+          console.error('Failed to initialize content script components:', error);
+        }
+      } else {
+        console.warn('Background script not responding');
+      }
+    });
+  } catch (error) {
+    console.error('Failed to initialize content script:', error);
+  }
 }
 
 // Load content script styles
