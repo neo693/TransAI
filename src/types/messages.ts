@@ -20,6 +20,10 @@ export interface BaseMessage {
 
 // Message types enum
 export enum MessageType {
+  // System messages
+  PING = 'PING',
+  PONG = 'PONG',
+  
   // Translation messages
   TRANSLATE_TEXT = 'TRANSLATE_TEXT',
   TRANSLATION_RESULT = 'TRANSLATION_RESULT',
@@ -191,6 +195,11 @@ export interface UpdateStatisticsMessage extends BaseMessage {
   };
 }
 
+export interface PingMessage extends BaseMessage {
+  type: MessageType.PING;
+  payload?: never;
+}
+
 // Response message interfaces
 export interface TranslationResultMessage extends BaseMessage {
   type: MessageType.TRANSLATION_RESULT;
@@ -223,8 +232,16 @@ export interface ErrorMessage extends BaseMessage {
   };
 }
 
+export interface PongMessage extends BaseMessage {
+  type: MessageType.PONG;
+  payload: {
+    success: boolean;
+  };
+}
+
 // Union type for all request messages
 export type RequestMessage = 
+  | PingMessage
   | TranslateTextMessage
   | AddToVocabularyMessage
   | CheckVocabularyMessage
@@ -245,6 +262,7 @@ export type RequestMessage =
 
 // Union type for all response messages
 export type ResponseMessage = 
+  | PongMessage
   | TranslationResultMessage
   | ContentGeneratedMessage
   | SuccessMessage

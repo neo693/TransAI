@@ -11,6 +11,7 @@ import {
 import {
   MessageType,
   type ResponseMessage,
+  type PingMessage,
   type TranslateTextMessage,
   type AddToVocabularyMessage,
   type CheckVocabularyMessage,
@@ -166,6 +167,9 @@ export class BackgroundService {
    * Setup message handlers for all message types
    */
   private setupMessageHandlers(): void {
+    // System handlers
+    messageRouter.registerHandler(MessageType.PING, this.handlePing.bind(this));
+    
     // Translation handlers
     messageRouter.registerHandler(MessageType.TRANSLATE_TEXT, this.handleTranslateText.bind(this));
 
@@ -192,6 +196,20 @@ export class BackgroundService {
     messageRouter.registerHandler(MessageType.UPDATE_STATISTICS, this.handleUpdateStatistics.bind(this));
 
     console.log('Message handlers registered');
+  }
+
+  /**
+   * Handle ping requests from content scripts
+   */
+  private async handlePing(message: PingMessage): Promise<ResponseMessage> {
+    return {
+      id: message.id,
+      type: MessageType.PONG,
+      timestamp: Date.now(),
+      payload: {
+        success: true
+      }
+    };
   }
 
   /**

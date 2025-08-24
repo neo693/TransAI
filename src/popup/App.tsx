@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import type { 
-  VocabularyItem, 
-  TranslationResult, 
+import { Globe, BookOpen, Sparkles, Settings, Edit2, Trash2, Volume2, Calendar, RotateCcw } from 'lucide-react';
+import { audioService } from '../services/audio.js';
+import type {
+  VocabularyItem,
+  TranslationResult,
   LanguageCode,
   VocabularyFilter,
   GeneratedContent
@@ -84,42 +86,13 @@ interface ArticleGenerationProps {
 }
 
 // Mock data and functions for development
-const mockVocabularyItems: VocabularyItem[] = [
-  {
-    id: '1',
-    word: 'bonjour',
-    translation: 'hello',
-    context: 'greeting someone in the morning',
-    sourceUrl: 'https://example.com',
-    dateAdded: new Date('2024-01-15'),
-    reviewCount: 3,
-    pronunciation: 'bon-ZHOOR'
-  },
-  {
-    id: '2',
-    word: 'merci',
-    translation: 'thank you',
-    context: 'expressing gratitude',
-    sourceUrl: 'https://example.com',
-    dateAdded: new Date('2024-01-16'),
-    reviewCount: 5
-  },
-  {
-    id: '3',
-    word: 'au revoir',
-    translation: 'goodbye',
-    context: 'saying farewell',
-    sourceUrl: 'https://example.com',
-    dateAdded: new Date('2024-01-17'),
-    reviewCount: 2
-  }
-];
+const mockVocabularyItems: VocabularyItem[] = [];
 
 // Vocabulary Statistics Component
-const VocabularyStats: React.FC<VocabularyStatsProps> = ({ 
-  totalWords, 
-  averageReviewCount, 
-  mostRecentWord 
+const VocabularyStats: React.FC<VocabularyStatsProps> = ({
+  totalWords,
+  averageReviewCount,
+  mostRecentWord
 }) => {
   return (
     <div className="p-3 bg-gray-50 rounded-lg mb-4">
@@ -175,7 +148,7 @@ const VocabularyFilter: React.FC<VocabularyFilterProps> = ({ onFilterChange, cur
           {showAdvanced ? 'Simple' : 'Advanced'}
         </button>
       </div>
-      
+
       {showAdvanced && (
         <div className="space-y-2">
           <div>
@@ -189,7 +162,7 @@ const VocabularyFilter: React.FC<VocabularyFilterProps> = ({ onFilterChange, cur
               placeholder="Any"
             />
           </div>
-          
+
           <div>
             <label className="block text-xs text-gray-600 mb-1">Added:</label>
             <select
@@ -240,7 +213,7 @@ const VocabularyEditModal: React.FC<VocabularyEditModalProps> = ({ item, isOpen,
             </svg>
           </button>
         </div>
-        
+
         <div className="space-y-3">
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-1">Word</label>
@@ -251,7 +224,7 @@ const VocabularyEditModal: React.FC<VocabularyEditModalProps> = ({ item, isOpen,
               className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
-          
+
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-1">Translation</label>
             <input
@@ -261,7 +234,7 @@ const VocabularyEditModal: React.FC<VocabularyEditModalProps> = ({ item, isOpen,
               className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
-          
+
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-1">Context</label>
             <textarea
@@ -271,7 +244,7 @@ const VocabularyEditModal: React.FC<VocabularyEditModalProps> = ({ item, isOpen,
               rows={2}
             />
           </div>
-          
+
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-1">Pronunciation</label>
             <input
@@ -283,7 +256,7 @@ const VocabularyEditModal: React.FC<VocabularyEditModalProps> = ({ item, isOpen,
             />
           </div>
         </div>
-        
+
         <div className="flex gap-2 mt-4">
           <button
             onClick={handleSave}
@@ -324,11 +297,11 @@ const SearchBar: React.FC<SearchBarProps> = ({ value, onChange, placeholder = "S
 };
 
 // Word Selection Component
-const WordSelection: React.FC<WordSelectionProps> = ({ 
-  vocabularyItems, 
-  selectedWords, 
-  onSelectionChange, 
-  maxSelection = 10 
+const WordSelection: React.FC<WordSelectionProps> = ({
+  vocabularyItems,
+  selectedWords,
+  onSelectionChange,
+  maxSelection = 10
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -393,17 +366,16 @@ const WordSelection: React.FC<WordSelectionProps> = ({
           filteredItems.map((item) => {
             const isSelected = selectedWords.includes(item.word);
             const canSelect = isSelected || selectedWords.length < maxSelection;
-            
+
             return (
               <div
                 key={item.id}
-                className={`flex items-center gap-2 p-2 rounded border cursor-pointer transition-colors ${
-                  isSelected 
-                    ? 'bg-blue-50 border-blue-200' 
-                    : canSelect 
-                      ? 'bg-gray-50 border-gray-200 hover:bg-gray-100' 
-                      : 'bg-gray-100 border-gray-200 opacity-50 cursor-not-allowed'
-                }`}
+                className={`flex items-center gap-2 p-2 rounded border cursor-pointer transition-colors ${isSelected
+                  ? 'bg-blue-50 border-blue-200'
+                  : canSelect
+                    ? 'bg-gray-50 border-gray-200 hover:bg-gray-100'
+                    : 'bg-gray-100 border-gray-200 opacity-50 cursor-not-allowed'
+                  }`}
                 onClick={() => canSelect && handleWordToggle(item.word)}
               >
                 <div className="flex-1 min-w-0 overflow-hidden">
@@ -436,15 +408,15 @@ const WordSelection: React.FC<WordSelectionProps> = ({
 };
 
 // Generated Content Display Component
-const GeneratedContentDisplay: React.FC<GeneratedContentDisplayProps> = ({ 
-  content, 
-  onSave, 
-  onPractice 
+const GeneratedContentDisplay: React.FC<GeneratedContentDisplayProps> = ({
+  content,
+  onSave,
+  onPractice
 }) => {
   const [showFullContent, setShowFullContent] = useState(false);
-  
-  const displayContent = content.content.length > 200 && !showFullContent 
-    ? content.content.substring(0, 200) + '...' 
+
+  const displayContent = content.content.length > 200 && !showFullContent
+    ? content.content.substring(0, 200) + '...'
     : content.content;
 
   const handleCopyToClipboard = async () => {
@@ -527,6 +499,7 @@ const GeneratedContentDisplay: React.FC<GeneratedContentDisplayProps> = ({
 const QuickTranslate: React.FC<QuickTranslateProps> = ({ onTranslate, loading, result }) => {
   const [text, setText] = useState('');
   const [targetLang, setTargetLang] = useState<LanguageCode>('en');
+  const [phonetic, setPhonetic] = useState<string>('');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -534,6 +507,15 @@ const QuickTranslate: React.FC<QuickTranslateProps> = ({ onTranslate, loading, r
       onTranslate(text.trim(), targetLang);
     }
   };
+
+  // Get phonetic transcription when translation result changes
+  useEffect(() => {
+    if (result) {
+      audioService.getPhoneticTranscription(result.translatedText, result.targetLanguage as LanguageCode)
+        .then(setPhonetic)
+        .catch(() => setPhonetic(''));
+    }
+  }, [result]);
 
   return (
     <div className="space-y-4">
@@ -547,7 +529,7 @@ const QuickTranslate: React.FC<QuickTranslateProps> = ({ onTranslate, loading, r
             rows={3}
           />
         </div>
-        
+
         <div className="flex gap-2">
           <select
             value={targetLang}
@@ -566,7 +548,7 @@ const QuickTranslate: React.FC<QuickTranslateProps> = ({ onTranslate, loading, r
             <option value="zh">Chinese</option>
             <option value="ar">Arabic</option>
           </select>
-          
+
           <button
             type="submit"
             disabled={loading || !text.trim()}
@@ -578,31 +560,58 @@ const QuickTranslate: React.FC<QuickTranslateProps> = ({ onTranslate, loading, r
       </form>
 
       {result && (
-        <div className="p-3 bg-gray-50 rounded-lg">
-          <div className="text-sm font-medium text-gray-700 mb-2">Translation:</div>
-          <div className="flex items-center space-x-2 mb-2">
-            <span className="text-sm text-gray-900">{result.translatedText}</span>
-            <PronunciationButton
-              word={result.translatedText}
-              language={result.targetLanguage as LanguageCode}
-              size="sm"
-              onError={(error) => console.warn('Pronunciation error:', error)}
-            />
-          </div>
-          {result.examples.length > 0 && (
-            <div className="mt-2">
-              <div className="text-xs font-medium text-gray-600 mb-1">Examples:</div>
-              {result.examples.slice(0, 2).map((example, index) => (
-                <div key={index} className="text-xs text-gray-700 mb-1 flex items-center space-x-1">
-                  <span>• {example.translated}</span>
-                  <InlinePronunciation
-                    word={example.translated}
-                    language={result.targetLanguage as LanguageCode}
-                  />
-                </div>
-              ))}
+        <div className="p-4 bg-white border border-gray-200 rounded-lg shadow-sm">
+          <div className="space-y-3">
+            {/* Original Text */}
+            <div>
+              <div className="text-xs font-medium text-gray-500 mb-1">Original:</div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-900">{text}</span>
+                <button className="text-gray-400 hover:text-blue-500 transition-colors">
+                  <Volume2 size={14} />
+                </button>
+              </div>
             </div>
-          )}
+
+            {/* Translation */}
+            <div>
+              <div className="text-xs font-medium text-gray-500 mb-1">Translation:</div>
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-base font-medium text-gray-900">{result.translatedText}</span>
+                <PronunciationButton
+                  word={result.translatedText}
+                  language={result.targetLanguage as LanguageCode}
+                  size="sm"
+                  onError={(error) => console.warn('Pronunciation error:', error)}
+                />
+              </div>
+
+              {/* Phonetic Transcription */}
+              {phonetic && (
+                <div className="text-sm text-blue-600 bg-blue-50 px-2 py-1 rounded font-mono mb-2">
+                  {phonetic}
+                </div>
+              )}
+            </div>
+
+            {/* Examples */}
+            {result.examples.length > 0 && (
+              <div>
+                <div className="text-xs font-medium text-gray-500 mb-2">Examples:</div>
+                <div className="space-y-1">
+                  {result.examples.slice(0, 2).map((example, index) => (
+                    <div key={index} className="text-xs text-gray-700 bg-gray-50 rounded px-2 py-1 flex items-center gap-2">
+                      <span>• {example.translated}</span>
+                      <InlinePronunciation
+                        word={example.translated}
+                        language={result.targetLanguage as LanguageCode}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>
@@ -610,12 +619,12 @@ const QuickTranslate: React.FC<QuickTranslateProps> = ({ onTranslate, loading, r
 };
 
 // Sentence Generation Component
-const SentenceGeneration: React.FC<SentenceGenerationProps> = ({ 
-  vocabularyItems, 
-  onGenerate, 
-  loading, 
+const SentenceGeneration: React.FC<SentenceGenerationProps> = ({
+  vocabularyItems,
+  onGenerate,
+  loading,
   generatedContent,
-  onSaveContent 
+  onSaveContent
 }) => {
   const [selectedWords, setSelectedWords] = useState<string[]>([]);
   const [sentenceCount, setSentenceCount] = useState(3);
@@ -664,7 +673,7 @@ const SentenceGeneration: React.FC<SentenceGenerationProps> = ({
           <div className="text-sm text-gray-900 mb-3">
             {practiceSentences[practiceIndex]}
           </div>
-          
+
           <div className="flex gap-2">
             <button
               onClick={() => setPracticeIndex(Math.max(0, practiceIndex - 1))}
@@ -690,7 +699,7 @@ const SentenceGeneration: React.FC<SentenceGenerationProps> = ({
     <div className="space-y-4">
       <div>
         <h3 className="text-sm font-medium text-gray-700 mb-3">Generate Sentences</h3>
-        
+
         {vocabularyItems.length === 0 ? (
           <div className="text-center py-8">
             <div className="text-sm text-gray-500 mb-2">No vocabulary items available</div>
@@ -745,12 +754,12 @@ const SentenceGeneration: React.FC<SentenceGenerationProps> = ({
 };
 
 // Article Generation Component
-const ArticleGeneration: React.FC<ArticleGenerationProps> = ({ 
-  vocabularyItems, 
-  onGenerate, 
-  loading, 
+const ArticleGeneration: React.FC<ArticleGenerationProps> = ({
+  vocabularyItems,
+  onGenerate,
+  loading,
   generatedContent,
-  onSaveContent 
+  onSaveContent
 }) => {
   const [selectedWords, setSelectedWords] = useState<string[]>([]);
   const [topic, setTopic] = useState('');
@@ -806,7 +815,7 @@ const ArticleGeneration: React.FC<ArticleGenerationProps> = ({
       const regex = new RegExp(`\\b${word}\\b`, 'gi');
       highlightedContent = highlightedContent.replace(regex, `<span class="${color} px-1 rounded">${word}</span>`);
     });
-    
+
     return highlightedContent;
   };
 
@@ -814,7 +823,7 @@ const ArticleGeneration: React.FC<ArticleGenerationProps> = ({
     <div className="space-y-4">
       <div>
         <h3 className="text-sm font-medium text-gray-700 mb-3">Generate Article</h3>
-        
+
         {vocabularyItems.length === 0 ? (
           <div className="text-center py-8">
             <div className="text-sm text-gray-500 mb-2">No vocabulary items available</div>
@@ -872,10 +881,10 @@ const ArticleGeneration: React.FC<ArticleGenerationProps> = ({
           <div className="p-3 bg-gray-50 rounded-lg space-y-3">
             <div className="text-sm text-gray-900 leading-relaxed max-h-48 overflow-y-auto">
               {showHighlights ? (
-                <div 
-                  dangerouslySetInnerHTML={{ 
-                    __html: renderArticleWithHighlights(generatedContent.content, generatedContent.usedWords) 
-                  }} 
+                <div
+                  dangerouslySetInnerHTML={{
+                    __html: renderArticleWithHighlights(generatedContent.content, generatedContent.usedWords)
+                  }}
                 />
               ) : (
                 generatedContent.content
@@ -926,7 +935,7 @@ const ArticleGeneration: React.FC<ArticleGenerationProps> = ({
           <div className="p-3 bg-blue-50 rounded-lg">
             <div className="text-xs font-medium text-blue-800 mb-2">Learning Exercise</div>
             <div className="text-xs text-blue-700 mb-2">
-              Try to identify and understand each vocabulary word in context. 
+              Try to identify and understand each vocabulary word in context.
               Click the highlights toggle to practice without visual aids.
             </div>
             <div className="flex gap-2">
@@ -964,6 +973,7 @@ const VocabularyList: React.FC<VocabularyListProps> = ({ items, onItemClick, onD
     return (
       <div className="flex items-center justify-center py-8">
         <div className="text-center">
+          <BookOpen className="h-12 w-12 text-gray-300 mx-auto mb-3" />
           <div className="text-sm text-gray-500 mb-2">No vocabulary items found</div>
           <div className="text-xs text-gray-400">Start translating text to build your vocabulary</div>
         </div>
@@ -972,77 +982,89 @@ const VocabularyList: React.FC<VocabularyListProps> = ({ items, onItemClick, onD
   }
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
       {items.map((item) => (
         <div
           key={item.id}
-          className="p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer group"
+          className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-sm transition-shadow cursor-pointer group"
           onClick={() => onItemClick(item)}
         >
-          <div className="flex items-start justify-between">
+          {/* Word and Translation */}
+          <div className="flex items-start justify-between mb-3">
             <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-1">
-                <div className="flex items-center space-x-1">
-                  <span className="font-medium text-gray-900 truncate">{item.word}</span>
-                  <InlinePronunciation
-                    word={item.word}
-                    language="fr" // This should be determined from the word's language
-                  />
+              <div className="flex items-center gap-3 mb-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-lg font-semibold text-gray-900">{item.word}</span>
+                  {item.pronunciation && (
+                    <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded-full font-mono">
+                      /{item.pronunciation}/
+                    </span>
+                  )}
+                  <button className="text-gray-400 hover:text-blue-500 transition-colors">
+                    <Volume2 size={16} />
+                  </button>
                 </div>
-                <span className="text-sm text-gray-500">→</span>
-                <div className="flex items-center space-x-1">
-                  <span className="text-sm text-gray-700 truncate">{item.translation}</span>
-                  <InlinePronunciation
-                    word={item.translation}
-                    language="en" // This should be determined from the translation's language
-                  />
-                </div>
-                {item.pronunciation && (
-                  <span className="text-xs text-blue-600 bg-blue-50 px-1 rounded">
-                    {item.pronunciation}
-                  </span>
-                )}
               </div>
-              
+
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-sm text-gray-600">→</span>
+                <span className="text-base text-gray-800">{item.translation}</span>
+                <button className="text-gray-400 hover:text-blue-500 transition-colors">
+                  <Volume2 size={14} />
+                </button>
+              </div>
+
               {item.context && (
-                <div className="text-xs text-gray-500 truncate mb-1">
-                  Context: {item.context}
+                <div className="text-sm text-gray-600 bg-gray-50 rounded-md p-2 mb-2">
+                  <span className="font-medium">Context:</span> {item.context}
                 </div>
               )}
-              
-              <div className="flex items-center gap-3 text-xs text-gray-400">
-                <span>Added: {item.dateAdded.toLocaleDateString()}</span>
-                <span>Reviews: {item.reviewCount}</span>
-              </div>
             </div>
-            
-            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+
+            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity ml-2">
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   onEditItem(item);
                 }}
-                className="p-1 text-gray-400 hover:text-blue-500"
+                className="p-2 text-gray-400 hover:text-blue-500 hover:bg-blue-50 rounded-md transition-colors"
                 title="Edit item"
               >
-                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                </svg>
+                <Edit2 size={16} />
               </button>
-              
+
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   onDeleteItem(item.id);
                 }}
-                className="p-1 text-gray-400 hover:text-red-500"
+                className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors"
                 title="Delete item"
               >
-                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                </svg>
+                <Trash2 size={16} />
               </button>
             </div>
+          </div>
+
+          {/* Metadata */}
+          <div className="flex items-center justify-between text-xs text-gray-500 pt-2 border-t border-gray-100">
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-1">
+                <Calendar size={12} />
+                <span>{item.dateAdded.toLocaleDateString()}</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <RotateCcw size={12} />
+                <span>{item.reviewCount} reviews</span>
+              </div>
+            </div>
+            {item.sourceUrl && (
+              <div className="text-blue-500 hover:text-blue-600 truncate max-w-24">
+                <a href={item.sourceUrl} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>
+                  Source
+                </a>
+              </div>
+            )}
           </div>
         </div>
       ))}
@@ -1057,7 +1079,7 @@ function App() {
   const [vocabularyItems, setVocabularyItems] = useState<VocabularyItem[]>([]);
   const [filteredItems, setFilteredItems] = useState<VocabularyItem[]>([]);
   const [translationResult, setTranslationResult] = useState<TranslationResult>();
-  
+
   // Use translation hook
   const { translate, loading, error: translationError, isConfigured } = useTranslation();
   const [currentPage, setCurrentPage] = useState(1);
@@ -1095,11 +1117,11 @@ function App() {
     const totalReviews = vocabularyItems.reduce((sum, item) => sum + item.reviewCount, 0);
     const averageReviewCount = totalReviews / vocabularyItems.length;
 
-    const mostRecentWord = vocabularyItems.reduce((latest, item) => 
+    const mostRecentWord = vocabularyItems.reduce((latest, item) =>
       item.dateAdded > latest.dateAdded ? item : latest
     );
 
-    const mostReviewedWord = vocabularyItems.reduce((mostReviewed, item) => 
+    const mostReviewedWord = vocabularyItems.reduce((mostReviewed, item) =>
       item.reviewCount > mostReviewed.reviewCount ? item : mostReviewed
     );
 
@@ -1131,7 +1153,7 @@ function App() {
     }
 
     if (vocabularyFilter.dateRange) {
-      filtered = filtered.filter(item => 
+      filtered = filtered.filter(item =>
         item.dateAdded >= vocabularyFilter.dateRange!.start &&
         item.dateAdded <= vocabularyFilter.dateRange!.end
       );
@@ -1182,7 +1204,7 @@ function App() {
 
   // Handle vocabulary item save
   const handleSaveVocabularyItem = useCallback((updatedItem: VocabularyItem) => {
-    setVocabularyItems(prev => 
+    setVocabularyItems(prev =>
       prev.map(item => item.id === updatedItem.id ? updatedItem : item)
     );
   }, []);
@@ -1211,7 +1233,7 @@ function App() {
       };
 
       const response = await chrome.runtime.sendMessage(message);
-      
+
       if (response.type === MessageType.CONTENT_GENERATED) {
         setGeneratedContent(response.payload.content);
       } else if (response.type === 'ERROR') {
@@ -1242,7 +1264,7 @@ function App() {
       };
 
       const response = await chrome.runtime.sendMessage(message);
-      
+
       if (response.type === MessageType.CONTENT_GENERATED) {
         setGeneratedContent(response.payload.content);
       } else if (response.type === 'ERROR') {
@@ -1265,10 +1287,10 @@ function App() {
 
   // Tab navigation
   const tabs = [
-    { id: 'translate' as TabType, label: 'Translate', icon: '🌐' },
-    { id: 'vocabulary' as TabType, label: 'Vocabulary', icon: '📚' },
-    { id: 'generate' as TabType, label: 'Generate', icon: '✨' },
-    { id: 'settings' as TabType, label: 'Settings', icon: '⚙️' }
+    { id: 'translate' as TabType, label: 'Translate', icon: Globe },
+    { id: 'vocabulary' as TabType, label: 'Vocabulary', icon: BookOpen },
+    { id: 'generate' as TabType, label: 'Generate', icon: Sparkles },
+    { id: 'settings' as TabType, label: 'Settings', icon: Settings }
   ];
 
   return (
@@ -1285,22 +1307,24 @@ function App() {
 
       {/* Tab Navigation */}
       <div className="flex-shrink-0 flex border-b border-gray-200">
-        {tabs.map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={`flex-1 px-2 py-2 text-xs font-medium text-center transition-colors min-w-0 ${
-              activeTab === tab.id
+        {tabs.map((tab) => {
+          const IconComponent = tab.icon;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex-1 px-2 py-3 text-center transition-colors min-w-0 ${activeTab === tab.id
                 ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50'
                 : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-            }`}
-          >
-            <div className="flex items-center justify-center gap-1">
-              <span>{tab.icon}</span>
-              <span className="truncate">{tab.label}</span>
-            </div>
-          </button>
-        ))}
+                }`}
+              title={tab.label}
+            >
+              <div className="flex items-center justify-center">
+                <IconComponent size={20} />
+              </div>
+            </button>
+          );
+        })}
       </div>
 
       {/* Tab Content */}
@@ -1325,12 +1349,12 @@ function App() {
                 onChange={setSearchQuery}
                 placeholder="Search vocabulary..."
               />
-              
+
               <VocabularyFilter
                 onFilterChange={handleFilterChange}
                 currentFilter={vocabularyFilter}
               />
-              
+
               <VocabularyStats
                 totalWords={vocabularyStats.totalWords}
                 averageReviewCount={vocabularyStats.averageReviewCount}
@@ -1338,7 +1362,7 @@ function App() {
                 mostReviewedWord={vocabularyStats.mostReviewedWord}
               />
             </div>
-            
+
             <div className="flex-1 min-h-0 overflow-y-auto">
               <div className="p-4">
                 <VocabularyList
@@ -1389,11 +1413,10 @@ function App() {
                   setGenerationMode('sentences');
                   setGeneratedContent(undefined);
                 }}
-                className={`flex-1 px-3 py-2 text-xs font-medium text-center transition-colors ${
-                  generationMode === 'sentences'
-                    ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50'
-                    : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-                }`}
+                className={`flex-1 px-3 py-2 text-xs font-medium text-center transition-colors ${generationMode === 'sentences'
+                  ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50'
+                  : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                  }`}
               >
                 Sentences
               </button>
@@ -1402,11 +1425,10 @@ function App() {
                   setGenerationMode('article');
                   setGeneratedContent(undefined);
                 }}
-                className={`flex-1 px-3 py-2 text-xs font-medium text-center transition-colors ${
-                  generationMode === 'article'
-                    ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50'
-                    : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-                }`}
+                className={`flex-1 px-3 py-2 text-xs font-medium text-center transition-colors ${generationMode === 'article'
+                  ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50'
+                  : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                  }`}
               >
                 Article
               </button>
@@ -1443,7 +1465,7 @@ function App() {
               <div className="space-y-4">
                 <div className="text-center">
                   <div className="text-sm font-medium text-gray-700 mb-4">Settings</div>
-                  
+
                   {/* Configuration Status */}
                   <div className="mb-6 p-3 rounded-lg border">
                     <div className="flex items-center justify-center space-x-2 mb-2">
@@ -1461,7 +1483,7 @@ function App() {
                       </div>
                     )}
                   </div>
-                  
+
                   {/* Quick Settings Options */}
                   <div className="space-y-3 mb-6">
                     <button
@@ -1517,7 +1539,7 @@ function App() {
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                         </svg>
                       </button>
-                      
+
                       <button
                         onClick={async () => {
                           if (confirm('Are you sure you want to clear all vocabulary? This action cannot be undone.')) {

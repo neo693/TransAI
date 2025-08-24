@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { ChevronDown } from 'lucide-react';
 import { storageManager } from '../services/storage.js';
 import type { 
   UserConfig, 
@@ -9,6 +10,41 @@ import type {
   VocabularyItem,
   ExportFormat 
 } from '../types/index.js';
+
+// Custom Select Component
+interface CustomSelectProps {
+  value: string;
+  onChange: (value: string) => void;
+  options: { value: string; label: string; description?: string }[];
+  className?: string;
+}
+
+const CustomSelect: React.FC<CustomSelectProps> = ({ 
+  value, 
+  onChange, 
+  options, 
+  className = ""
+}) => {
+  return (
+    <div className={`relative ${className}`}>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="block w-full px-4 py-3 pr-10 text-base border border-gray-300 rounded-lg shadow-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 hover:border-gray-400 transition-colors appearance-none cursor-pointer"
+      >
+        {options.map(option => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+            {option.description && ` - ${option.description}`}
+          </option>
+        ))}
+      </select>
+      <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+        <ChevronDown className="h-5 w-5 text-gray-400" />
+      </div>
+    </div>
+  );
+};
 
 // Language options for the UI
 const LANGUAGE_OPTIONS: { code: LanguageCode; name: string }[] = [
@@ -563,19 +599,15 @@ function App() {
                       <label htmlFor="selectedModel" className="block text-sm font-medium text-gray-700 mb-2">
                         Model
                       </label>
-                      <select
-                        id="selectedModel"
+                      <CustomSelect
                         value={config.selectedModel || MODEL_OPTIONS[config.apiProvider][0]?.value || ''}
-                        onChange={(e) => handleConfigChange({ selectedModel: e.target.value })}
-                        className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                      >
-                        {MODEL_OPTIONS[config.apiProvider].map(model => (
-                          <option key={model.value} value={model.value}>
-                            {model.name}
-                            {model.description && ` - ${model.description}`}
-                          </option>
-                        ))}
-                      </select>
+                        onChange={(value) => handleConfigChange({ selectedModel: value })}
+                        options={MODEL_OPTIONS[config.apiProvider].map(model => ({
+                          value: model.value,
+                          label: model.name,
+                          description: model.description
+                        }))}
+                      />
                       <p className="mt-1 text-sm text-gray-500">
                         Choose the model that best fits your needs and budget.
                       </p>
@@ -594,20 +626,16 @@ function App() {
                     <label htmlFor="defaultLanguage" className="block text-sm font-medium text-gray-700 mb-2">
                       Default Target Language
                     </label>
-                    <select
-                      id="defaultLanguage"
+                    <CustomSelect
                       value={config.defaultTargetLanguage}
-                      onChange={(e) => handleConfigChange({ 
-                        defaultTargetLanguage: e.target.value as LanguageCode 
+                      onChange={(value) => handleConfigChange({ 
+                        defaultTargetLanguage: value as LanguageCode 
                       })}
-                      className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                    >
-                      {LANGUAGE_OPTIONS.map(lang => (
-                        <option key={lang.code} value={lang.code}>
-                          {lang.name}
-                        </option>
-                      ))}
-                    </select>
+                      options={LANGUAGE_OPTIONS.map(lang => ({
+                        value: lang.code,
+                        label: lang.name
+                      }))}
+                    />
                     <p className="mt-1 text-sm text-gray-500">
                       The default language for translations when not specified.
                     </p>
@@ -626,22 +654,19 @@ function App() {
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Theme
                     </label>
-                    <select
+                    <CustomSelect
                       value={config.uiPreferences.theme}
-                      onChange={(e) => handleConfigChange({
+                      onChange={(value) => handleConfigChange({
                         uiPreferences: {
                           ...config.uiPreferences,
-                          theme: e.target.value as Theme
+                          theme: value as Theme
                         }
                       })}
-                      className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                    >
-                      {THEME_OPTIONS.map(theme => (
-                        <option key={theme.value} value={theme.value}>
-                          {theme.name}
-                        </option>
-                      ))}
-                    </select>
+                      options={THEME_OPTIONS.map(theme => ({
+                        value: theme.value,
+                        label: theme.name
+                      }))}
+                    />
                   </div>
 
                   {/* Overlay Position */}
@@ -649,22 +674,19 @@ function App() {
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Translation Overlay Position
                     </label>
-                    <select
+                    <CustomSelect
                       value={config.uiPreferences.overlayPosition}
-                      onChange={(e) => handleConfigChange({
+                      onChange={(value) => handleConfigChange({
                         uiPreferences: {
                           ...config.uiPreferences,
-                          overlayPosition: e.target.value as OverlayPosition
+                          overlayPosition: value as OverlayPosition
                         }
                       })}
-                      className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                    >
-                      {OVERLAY_POSITIONS.map(position => (
-                        <option key={position.value} value={position.value}>
-                          {position.name}
-                        </option>
-                      ))}
-                    </select>
+                      options={OVERLAY_POSITIONS.map(position => ({
+                        value: position.value,
+                        label: position.name
+                      }))}
+                    />
                   </div>
 
                   {/* Auto-play Pronunciation */}

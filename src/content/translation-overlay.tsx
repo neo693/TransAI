@@ -79,29 +79,46 @@ const TranslationOverlay: React.FC<TranslationOverlayProps> = ({
   const requestTranslation = async () => {
     try {
       setState(prev => ({ ...prev, isLoading: true, error: null }));
+      console.log('Requesting translation for:', selection.text);
 
       // Send message to background script for translation
-      const response = await chrome.runtime.sendMessage({
+      const translateMessage = {
+        id: `translate_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         type: 'TRANSLATE_TEXT',
+        timestamp: Date.now(),
         payload: {
           text: selection.text,
-          context: selection.context,
-          sourceUrl: selection.url
+          options: {
+            targetLanguage: 'en', // Default target language
+            sourceLanguage: 'auto',
+            context: selection.context
+          }
         }
-      });
+      };
+      
+      console.log('Sending translation message:', translateMessage);
+      const response = await chrome.runtime.sendMessage(translateMessage);
+      console.log('Translation response:', response);
 
-      if (response.success) {
+      if (response.type === 'TRANSLATION_RESULT') {
         setState(prev => ({
           ...prev,
           isLoading: false,
-          translation: response.data,
+          translation: response.payload.result,
+          error: null
+        }));
+      } else if (response.type === 'SUCCESS' && response.payload.data) {
+        setState(prev => ({
+          ...prev,
+          isLoading: false,
+          translation: response.payload.data,
           error: null
         }));
       } else {
         setState(prev => ({
           ...prev,
           isLoading: false,
-          error: response.error || 'Translation failed'
+          error: response.payload?.error || 'Translation failed'
         }));
       }
     } catch (error) {
@@ -116,17 +133,24 @@ const TranslationOverlay: React.FC<TranslationOverlayProps> = ({
   const checkVocabularyStatus = async () => {
     try {
       setState(prev => ({ ...prev, vocabularyStatus: 'checking' }));
+      console.log('Checking vocabulary status for:', selection.text);
 
-      const response = await chrome.runtime.sendMessage({
+      const checkMessage = {
+        id: `check_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         type: 'CHECK_VOCABULARY',
+        timestamp: Date.now(),
         payload: { word: selection.text }
-      });
+      };
+      
+      console.log('Sending vocabulary check message:', checkMessage);
+      const response = await chrome.runtime.sendMessage(checkMessage);
+      console.log('Vocabulary check response:', response);
 
-      if (response.success) {
+      if (response.type === 'SUCCESS' && response.payload.data) {
         setState(prev => ({
           ...prev,
-          vocabularyStatus: response.data.exists ? 'exists' : 'none',
-          vocabularyMessage: response.data.exists ? 'Already in vocabulary' : null
+          vocabularyStatus: response.payload.data.exists ? 'exists' : 'none',
+          vocabularyMessage: response.payload.data.exists ? 'Already in vocabulary' : null
         }));
       } else {
         setState(prev => ({
@@ -154,17 +178,21 @@ const TranslationOverlay: React.FC<TranslationOverlayProps> = ({
         vocabularyMessage: 'Adding to vocabulary...'
       }));
 
-      const response = await chrome.runtime.sendMessage({
+      const addMessage = {
+        id: `add_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         type: 'ADD_TO_VOCABULARY',
+        timestamp: Date.now(),
         payload: {
           word: selection.text,
           translation: state.translation.translatedText,
           context: selection.context,
           sourceUrl: selection.url
         }
-      });
+      };
+      
+      const response = await chrome.runtime.sendMessage(addMessage);
 
-      if (response.success) {
+      if (response.type === 'SUCCESS') {
         setState(prev => ({
           ...prev,
           vocabularyStatus: 'added',
@@ -184,13 +212,13 @@ const TranslationOverlay: React.FC<TranslationOverlayProps> = ({
           }));
         }, 2000);
       } else {
-        const errorMessage = response.error === 'WORD_EXISTS' 
+        const errorMessage = response.payload?.code === 'WORD_EXISTS' 
           ? 'Word already in vocabulary'
-          : response.error || 'Failed to add to vocabulary';
+          : response.payload?.error || 'Failed to add to vocabulary';
           
         setState(prev => ({
           ...prev,
-          vocabularyStatus: response.error === 'WORD_EXISTS' ? 'exists' : 'error',
+          vocabularyStatus: response.payload?.code === 'WORD_EXISTS' ? 'exists' : 'error',
           vocabularyMessage: errorMessage
         }));
 
