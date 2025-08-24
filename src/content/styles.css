@@ -1,0 +1,164 @@
+/* Content script styles for TransAI extension */
+
+/* Reset styles for overlay to prevent inheritance from page styles */
+#transai-overlay-container {
+  all: initial;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-size: 14px;
+  line-height: 1.4;
+  color: #000;
+  direction: ltr;
+}
+
+/* Overlay component styles */
+.transai-overlay {
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+  color: inherit;
+  box-sizing: border-box;
+  
+  /* Ensure overlay is always visible */
+  visibility: visible !important;
+  display: block !important;
+  
+  /* Prevent page styles from affecting overlay */
+  background: white !important;
+  border: 1px solid #e5e7eb !important;
+  border-radius: 8px !important;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04) !important;
+  padding: 16px !important;
+  max-width: 320px !important;
+  min-width: 280px !important;
+  
+  /* Animation properties */
+  transition: all 0.2s ease-out !important;
+  transform-origin: center !important;
+}
+
+/* Ensure all child elements use border-box */
+.transai-overlay *,
+.transai-overlay *::before,
+.transai-overlay *::after {
+  box-sizing: border-box;
+}
+
+/* Button styles */
+.transai-overlay button {
+  font-family: inherit;
+  font-size: inherit;
+  border: none;
+  outline: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+/* Input and text area styles */
+.transai-overlay input,
+.transai-overlay textarea {
+  font-family: inherit;
+  font-size: inherit;
+  border: 1px solid #d1d5db;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.transai-overlay input:focus,
+.transai-overlay textarea:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* Scrollbar styles for overlay content */
+.transai-overlay ::-webkit-scrollbar {
+  width: 6px;
+}
+
+.transai-overlay ::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 3px;
+}
+
+.transai-overlay ::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+
+.transai-overlay ::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Loading animation */
+@keyframes transai-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.transai-overlay .animate-spin {
+  animation: transai-spin 1s linear infinite;
+}
+
+/* Responsive design for smaller screens */
+@media (max-width: 480px) {
+  .transai-overlay {
+    max-width: calc(100vw - 20px) !important;
+    min-width: 260px !important;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .transai-overlay {
+    border: 2px solid #000 !important;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .transai-overlay {
+    transition: none !important;
+  }
+  
+  .transai-overlay .animate-spin {
+    animation: none !important;
+  }
+}
+
+/* Ensure our styles don't conflict with page styles */
+.transai-overlay {
+  all: initial;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+  position: fixed;
+  z-index: 2147483647; /* Maximum z-index */
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  padding: 12px;
+  max-width: 300px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.transai-overlay * {
+  box-sizing: border-box;
+}
+
+.transai-button {
+  background: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.transai-button:hover {
+  background: #2563eb;
+}
