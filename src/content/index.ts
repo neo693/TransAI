@@ -106,14 +106,40 @@ function initializeOverlayManager() {
     overlayManager.destroy();
   }
   
-  overlayManager = new SimpleTranslationOverlay(handleAddToVocabulary);
+  overlayManager = new SimpleTranslationOverlay(handleAddToVocabulary, handleOverlayClose);
   console.log('Translation overlay manager initialized');
 }
+
+// Handle overlay manual close
+function handleOverlayClose() {
+  overlayManuallyClosed = true;
+  lastClosedTime = Date.now();
+  
+  // Clear the current text selection to prevent auto-reopening
+  const selection = window.getSelection();
+  if (selection) {
+    selection.removeAllRanges();
+  }
+}
+
+// Track if overlay was manually closed to prevent auto-reopening
+let overlayManuallyClosed = false;
+let lastClosedTime = 0;
 
 // Handle text selection changes
 function handleSelectionChange(selection: TextSelection | null) {
   if (selection) {
     console.log('Text selected:', selection.text);
+    
+    // Check if overlay was recently closed manually (within 1 second)
+    const now = Date.now();
+    if (overlayManuallyClosed && (now - lastClosedTime) < 1000) {
+      console.log('Overlay was recently closed manually, skipping auto-show');
+      return;
+    }
+    
+    // Reset manual close flag for new selections
+    overlayManuallyClosed = false;
     
     // Add visual feedback for selection
     const feedback = document.createElement('div');
@@ -141,8 +167,8 @@ function handleSelectionChange(selection: TextSelection | null) {
   } else {
     console.log('Selection cleared');
     
-    // Hide translation overlay
-    if (overlayManager) {
+    // Only hide overlay if it wasn't manually closed
+    if (overlayManager && !overlayManuallyClosed) {
       overlayManager.hide();
     }
   }

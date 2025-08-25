@@ -217,11 +217,24 @@ export class BackgroundService {
    */
   private async handleTranslateText(message: TranslateTextMessage): Promise<ResponseMessage> {
     try {
-      if (!this.translationService) {
+      // Check if configuration exists and has API key
+      if (!this.config?.apiKey) {
         throw new BackgroundServiceError(
-          'Translation service not initialized. Please configure API key.',
-          'SERVICE_NOT_INITIALIZED'
+          'API key not configured. Please configure your API key in the extension settings.',
+          'API_KEY_NOT_CONFIGURED'
         );
+      }
+
+      if (!this.translationService) {
+        // Try to initialize services if config is available
+        await this.initializeServices();
+        
+        if (!this.translationService) {
+          throw new BackgroundServiceError(
+            'Translation service not initialized. Please check your API key configuration.',
+            'SERVICE_NOT_INITIALIZED'
+          );
+        }
       }
 
       const result = await this.translationService.translate(

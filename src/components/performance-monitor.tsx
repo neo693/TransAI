@@ -58,32 +58,32 @@ export const PerformanceMonitor: React.FC<PerformanceMonitorProps> = ({
 
   const getStatusColor = (rate: number, isError: boolean = false): string => {
     if (isError) {
-      if (rate > 0.1) return 'text-red-600';
-      if (rate > 0.05) return 'text-yellow-600';
-      return 'text-green-600';
+      if (rate > 0.1) return 'tw-text-red-600';
+      if (rate > 0.05) return 'tw-text-yellow-600';
+      return 'tw-text-green-600';
     } else {
-      if (rate > 0.8) return 'text-green-600';
-      if (rate > 0.5) return 'text-yellow-600';
-      return 'text-red-600';
+      if (rate > 0.8) return 'tw-text-green-600';
+      if (rate > 0.5) return 'tw-text-yellow-600';
+      return 'tw-text-red-600';
     }
   };
 
   if (compact && !isExpanded) {
     return (
       <div 
-        className="bg-gray-100 rounded-lg p-2 cursor-pointer hover:bg-gray-200 transition-colors"
+        className="tw-bg-gray-100 tw-rounded-lg tw-p-2 tw-cursor-pointer hover:tw-bg-gray-200 tw-transition-colors"
         onClick={() => setIsExpanded(true)}
       >
-        <div className="flex items-center justify-between text-sm">
-          <span className="font-medium">Performance</span>
-          <div className="flex items-center space-x-2">
+        <div className="tw-flex tw-items-center tw-justify-between tw-text-sm">
+          <span className="tw-font-medium">Performance</span>
+          <div className="tw-flex tw-items-center tw-space-x-2">
             <span className={getStatusColor(metrics.cacheHitRate)}>
               {formatPercentage(metrics.cacheHitRate)} cache
             </span>
             <span className={getStatusColor(metrics.errorRate, true)}>
               {formatPercentage(metrics.errorRate)} errors
             </span>
-            <svg className="w-4 h-4 text-gray-500" fill="currentColor" viewBox="0 0 20 20">
+            <svg className="tw-w-4 tw-h-4 tw-text-gray-500" fill="currentColor" viewBox="0 0 20 20">
               <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
             </svg>
           </div>
@@ -93,16 +93,16 @@ export const PerformanceMonitor: React.FC<PerformanceMonitorProps> = ({
   }
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-gray-900">Performance Metrics</h3>
-        <div className="flex items-center space-x-2">
+    <div className="tw-bg-white tw-border tw-border-gray-200 tw-rounded-lg tw-p-4 tw-shadow-sm">
+      <div className="tw-flex tw-items-center tw-justify-between tw-mb-4">
+        <h3 className="tw-text-lg tw-font-semibold tw-text-gray-900">Performance Metrics</h3>
+        <div className="tw-flex tw-items-center tw-space-x-2">
           {compact && (
             <button
               onClick={() => setIsExpanded(false)}
-              className="text-gray-500 hover:text-gray-700"
+              className="tw-text-gray-500 hover:tw-text-gray-700"
             >
-              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+              <svg className="tw-w-4 tw-h-4" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" clipRule="evenodd" />
               </svg>
             </button>
@@ -110,7 +110,7 @@ export const PerformanceMonitor: React.FC<PerformanceMonitorProps> = ({
           {onResetMetrics && (
             <button
               onClick={onResetMetrics}
-              className="text-sm text-blue-600 hover:text-blue-800"
+              className="tw-text-sm tw-text-blue-600 hover:tw-text-blue-800"
             >
               Reset
             </button>
@@ -118,7 +118,7 @@ export const PerformanceMonitor: React.FC<PerformanceMonitorProps> = ({
           {onClearCache && (
             <button
               onClick={onClearCache}
-              className="text-sm text-orange-600 hover:text-orange-800"
+              className="tw-text-sm tw-text-orange-600 hover:tw-text-orange-800"
             >
               Clear Cache
             </button>
@@ -126,75 +126,75 @@ export const PerformanceMonitor: React.FC<PerformanceMonitorProps> = ({
         </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="tw-grid tw-grid-cols-2 md:tw-grid-cols-4 tw-gap-4">
         {/* Total Requests */}
-        <div className="bg-blue-50 rounded-lg p-3">
-          <div className="text-2xl font-bold text-blue-600">
+        <div className="tw-bg-blue-50 tw-rounded-lg tw-p-3">
+          <div className="tw-text-2xl tw-font-bold tw-text-blue-600">
             {metrics.totalRequests}
           </div>
-          <div className="text-sm text-blue-800">Total Requests</div>
+          <div className="tw-text-sm tw-text-blue-800">Total Requests</div>
         </div>
 
         {/* Cache Hit Rate */}
-        <div className="bg-green-50 rounded-lg p-3">
-          <div className={`text-2xl font-bold ${getStatusColor(metrics.cacheHitRate)}`}>
+        <div className="tw-bg-green-50 tw-rounded-lg tw-p-3">
+          <div className={`tw-text-2xl tw-font-bold ${getStatusColor(metrics.cacheHitRate)}`}>
             {formatPercentage(metrics.cacheHitRate)}
           </div>
-          <div className="text-sm text-green-800">Cache Hit Rate</div>
+          <div className="tw-text-sm tw-text-green-800">Cache Hit Rate</div>
         </div>
 
         {/* Average Response Time */}
-        <div className="bg-yellow-50 rounded-lg p-3">
-          <div className="text-2xl font-bold text-yellow-600">
+        <div className="tw-bg-yellow-50 tw-rounded-lg tw-p-3">
+          <div className="tw-text-2xl tw-font-bold tw-text-yellow-600">
             {formatTime(metrics.averageResponseTime)}
           </div>
-          <div className="text-sm text-yellow-800">Avg Response Time</div>
+          <div className="tw-text-sm tw-text-yellow-800">Avg Response Time</div>
         </div>
 
         {/* Error Rate */}
-        <div className="bg-red-50 rounded-lg p-3">
-          <div className={`text-2xl font-bold ${getStatusColor(metrics.errorRate, true)}`}>
+        <div className="tw-bg-red-50 tw-rounded-lg tw-p-3">
+          <div className={`tw-text-2xl tw-font-bold ${getStatusColor(metrics.errorRate, true)}`}>
             {formatPercentage(metrics.errorRate)}
           </div>
-          <div className="text-sm text-red-800">Error Rate</div>
+          <div className="tw-text-sm tw-text-red-800">Error Rate</div>
         </div>
       </div>
 
-      <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+      <div className="tw-mt-4 tw-grid tw-grid-cols-1 md:tw-grid-cols-3 tw-gap-4 tw-text-sm">
         <div>
-          <span className="font-medium text-gray-700">Cache Hits:</span>
-          <span className="ml-2 text-gray-900">{metrics.cacheHitCount}</span>
+          <span className="tw-font-medium tw-text-gray-700">Cache Hits:</span>
+          <span className="tw-ml-2 tw-text-gray-900">{metrics.cacheHitCount}</span>
         </div>
         <div>
-          <span className="font-medium text-gray-700">Errors:</span>
-          <span className="ml-2 text-gray-900">{metrics.errorCount}</span>
+          <span className="tw-font-medium tw-text-gray-700">Errors:</span>
+          <span className="tw-ml-2 tw-text-gray-900">{metrics.errorCount}</span>
         </div>
         <div>
-          <span className="font-medium text-gray-700">Last Request:</span>
-          <span className="ml-2 text-gray-900">{formatDate(metrics.lastRequestTime)}</span>
+          <span className="tw-font-medium tw-text-gray-700">Last Request:</span>
+          <span className="tw-ml-2 tw-text-gray-900">{formatDate(metrics.lastRequestTime)}</span>
         </div>
       </div>
 
       {/* Performance Status Indicator */}
-      <div className="mt-4 flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-        <span className="text-sm font-medium text-gray-700">Overall Performance:</span>
-        <div className="flex items-center space-x-2">
+      <div className="tw-mt-4 tw-flex tw-items-center tw-justify-between tw-p-3 tw-bg-gray-50 tw-rounded-lg">
+        <span className="tw-text-sm tw-font-medium tw-text-gray-700">Overall Performance:</span>
+        <div className="tw-flex tw-items-center tw-space-x-2">
           {metrics.cacheHitRate > 0.8 && metrics.errorRate < 0.05 && (
             <>
-              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-              <span className="text-sm text-green-600 font-medium">Excellent</span>
+              <div className="tw-w-2 tw-h-2 tw-bg-green-500 tw-rounded-full"></div>
+              <span className="tw-text-sm tw-text-green-600 tw-font-medium">Excellent</span>
             </>
           )}
           {metrics.cacheHitRate > 0.5 && metrics.errorRate < 0.1 && metrics.cacheHitRate <= 0.8 && (
             <>
-              <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
-              <span className="text-sm text-yellow-600 font-medium">Good</span>
+              <div className="tw-w-2 tw-h-2 tw-bg-yellow-500 tw-rounded-full"></div>
+              <span className="tw-text-sm tw-text-yellow-600 tw-font-medium">Good</span>
             </>
           )}
           {(metrics.cacheHitRate <= 0.5 || metrics.errorRate >= 0.1) && (
             <>
-              <div className="w-2 h-2 bg-red-500 rounded-full"></div>
-              <span className="text-sm text-red-600 font-medium">Needs Improvement</span>
+              <div className="tw-w-2 tw-h-2 tw-bg-red-500 tw-rounded-full"></div>
+              <span className="tw-text-sm tw-text-red-600 tw-font-medium">Needs Improvement</span>
             </>
           )}
         </div>

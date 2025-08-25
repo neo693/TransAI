@@ -5,7 +5,10 @@ export class SimpleTranslationOverlay {
   private overlayElement: HTMLDivElement | null = null;
   private currentSelection: TextSelection | null = null;
 
-  constructor(private onAddToVocabulary?: (word: string, translation: string) => void) {}
+  constructor(
+    private onAddToVocabulary?: (word: string, translation: string) => void,
+    private onClose?: () => void
+  ) {}
 
   show(selection: TextSelection): void {
     try {
@@ -24,12 +27,18 @@ export class SimpleTranslationOverlay {
       this.overlayElement = null;
     }
     this.currentSelection = null;
+    
+    // Call close callback if provided
+    if (this.onClose) {
+      this.onClose();
+    }
   }
 
   private createOverlay(selection: TextSelection): void {
     // Create overlay container
     this.overlayElement = document.createElement('div');
     this.overlayElement.className = 'transai-simple-overlay';
+    this.overlayElement.setAttribute('data-transai-overlay', 'true');
     
     // Calculate position
     const { x, y } = selection.position;

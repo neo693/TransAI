@@ -7,7 +7,9 @@ import { TextSelection } from '../types/index';
 export class TextSelector {
   private isSelectionActive = false;
   private selectionTimeout: number | null = null;
-  private readonly SELECTION_DELAY = 300; // ms to wait after selection change
+  private readonly SELECTION_DELAY = 500; // ms to wait after selection change (increased for better debouncing)
+  private lastSelectionText = '';
+  private debounceTimeout: number | null = null;
 
   constructor(
     private onSelectionChange: (selection: TextSelection | null) => void
@@ -28,16 +30,19 @@ export class TextSelector {
   }
 
   /**
-   * Handle selection change events
+   * Handle selection change events with debouncing
    */
   private handleSelectionChange(): void {
-    // Clear existing timeout
+    // Clear existing timeouts
     if (this.selectionTimeout) {
       clearTimeout(this.selectionTimeout);
     }
+    if (this.debounceTimeout) {
+      clearTimeout(this.debounceTimeout);
+    }
 
-    // Set new timeout to process selection after delay
-    this.selectionTimeout = window.setTimeout(() => {
+    // Debounce selection processing to avoid excessive API calls
+    this.debounceTimeout = window.setTimeout(() => {
       this.processSelection();
     }, this.SELECTION_DELAY);
   }
@@ -72,6 +77,13 @@ export class TextSelector {
       return;
     }
 
+    // Avoid processing the same selection multiple times
+    if (selectedText === this.lastSelectionText) {
+      return;
+    }
+    
+    this.lastSelectionText = selectedText;
+
     // Validate selection (must be reasonable length and contain valid characters)
     if (!this.isValidSelection(selectedText)) {
       this.clearSelection();
@@ -79,6 +91,12 @@ export class TextSelector {
     }
 
     const range = selection.getRangeAt(0);
+    
+    // Check if selection is within TransAI overlay - if so, ignore it
+    if (this.isSelectionInOverlay(range)) {
+      this.clearSelection();
+      return;
+    }
     
     // Handle complex layouts and problematic elements
     if (!this.handleComplexLayouts(range)) {
@@ -107,6 +125,7 @@ export class TextSelector {
     if (this.isSelectionActive) {
       this.isSelectionActive = false;
     }
+    this.lastSelectionText = '';
     this.onSelectionChange(null);
   }
 
@@ -141,6 +160,43 @@ export class TextSelector {
       return true;
     } catch (error) {
       console.warn('Error validating selection:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Check if selection is within TransAI overlay elements
+   */
+  private isSelectionInOverlay(range: Range): boolean {
+    try {
+      const container = range.commonAncestorContainer;
+      const element = container.nodeType === Node.TEXT_NODE 
+        ? container.parentElement 
+        : container as Element;
+
+      if (!element) {
+        return false;
+      }
+
+      // Check if selection is within any TransAI overlay elements
+      const transaiElements = [
+        '#transai-overlay-container',
+        '.transai-simple-overlay',
+        '.transai-overlay',
+        '[id^="transai-"]',
+        '[class*="transai-"]',
+        '[data-transai-overlay]'
+      ];
+
+      for (const selector of transaiElements) {
+        if (element.matches?.(selector) || element.closest?.(selector)) {
+          return true;
+        }
+      }
+
+      return false;
+    } catch (error) {
+      console.warn('Error checking overlay selection:', error);
       return false;
     }
   }
@@ -316,6 +372,11 @@ export class TextSelector {
     if (this.selectionTimeout) {
       clearTimeout(this.selectionTimeout);
       this.selectionTimeout = null;
+    }
+    
+    if (this.debounceTimeout) {
+      clearTimeout(this.debounceTimeout);
+      this.debounceTimeout = null;
     }
   }
 

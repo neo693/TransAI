@@ -27,21 +27,21 @@ export const LoadingIndicator: React.FC<LoadingIndicatorProps> = ({
   }
 
   const sizeClasses = {
-    small: 'w-4 h-4',
-    medium: 'w-6 h-6',
-    large: 'w-8 h-8'
+    small: 'tw-w-4 tw-h-4',
+    medium: 'tw-w-6 tw-h-6',
+    large: 'tw-w-8 tw-h-8'
   };
 
   const textSizeClasses = {
-    small: 'text-xs',
-    medium: 'text-sm',
-    large: 'text-base'
+    small: 'tw-text-xs',
+    medium: 'tw-text-sm',
+    large: 'tw-text-base'
   };
 
   if (error) {
     return (
-      <div className="flex items-center space-x-2 text-red-600">
-        <svg className={`${sizeClasses[size]} flex-shrink-0`} fill="currentColor" viewBox="0 0 20 20">
+      <div className="tw-flex tw-items-center tw-space-x-2 tw-text-red-600">
+        <svg className={`${sizeClasses[size]} tw-flex-shrink-0`} fill="currentColor" viewBox="0 0 20 20">
           <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
         </svg>
         <span className={textSizeClasses[size]}>{error}</span>
@@ -50,7 +50,7 @@ export const LoadingIndicator: React.FC<LoadingIndicatorProps> = ({
   }
 
   return (
-    <div className="flex items-center space-x-2 text-blue-600">
+    <div className="tw-flex tw-items-center tw-space-x-2 tw-text-blue-600">
       {variant === 'spinner' && (
         <svg 
           className={`${sizeClasses[size]} animate-spin flex-shrink-0`} 
@@ -74,10 +74,10 @@ export const LoadingIndicator: React.FC<LoadingIndicatorProps> = ({
       )}
 
       {variant === 'dots' && (
-        <div className="flex space-x-1">
-          <div className={`${sizeClasses[size]} bg-current rounded-full animate-pulse`} style={{ animationDelay: '0ms' }} />
-          <div className={`${sizeClasses[size]} bg-current rounded-full animate-pulse`} style={{ animationDelay: '150ms' }} />
-          <div className={`${sizeClasses[size]} bg-current rounded-full animate-pulse`} style={{ animationDelay: '300ms' }} />
+        <div className="tw-flex tw-space-x-1">
+          <div className={`${sizeClasses[size]} tw-bg-current tw-rounded-full tw-animate-pulse`} style={{ animationDelay: '0ms' }} />
+          <div className={`${sizeClasses[size]} tw-bg-current tw-rounded-full tw-animate-pulse`} style={{ animationDelay: '150ms' }} />
+          <div className={`${sizeClasses[size]} tw-bg-current tw-rounded-full tw-animate-pulse`} style={{ animationDelay: '300ms' }} />
         </div>
       )}
 
@@ -90,10 +90,10 @@ export const LoadingIndicator: React.FC<LoadingIndicatorProps> = ({
       )}
 
       {progress !== undefined && (
-        <div className="flex items-center space-x-2">
-          <div className="w-16 bg-gray-200 rounded-full h-2">
+        <div className="tw-flex tw-items-center tw-space-x-2">
+          <div className="tw-w-16 tw-bg-gray-200 tw-rounded-full tw-h-2">
             <div 
-              className="bg-blue-600 h-2 rounded-full transition-all duration-300" 
+              className="tw-bg-blue-600 tw-h-2 tw-rounded-full tw-transition-all tw-duration-300" 
               style={{ width: `${Math.max(0, Math.min(100, progress))}%` }}
             />
           </div>
@@ -140,8 +140,8 @@ export const LoadingOverlay: React.FC<LoadingOverlayProps> = ({
     : 'bg-transparent';
 
   return (
-    <div className={`${overlayClasses} ${backdropClasses} flex items-center justify-center`}>
-      <div className="bg-white rounded-lg p-6 shadow-lg max-w-sm w-full mx-4">
+    <div className={`${overlayClasses} ${backdropClasses} tw-flex tw-items-center tw-justify-center`}>
+      <div className="tw-bg-white tw-rounded-lg tw-p-6 tw-shadow-lg tw-max-w-sm tw-w-full tw-mx-4">
         <LoadingIndicator
           isLoading={isLoading}
           message={message}
@@ -210,7 +210,7 @@ export const ButtonLoading: React.FC<ButtonLoadingProps> = ({
       onClick={onClick}
     >
       {isLoading && (
-        <div className="absolute inset-0 flex items-center justify-center">
+        <div className="tw-absolute tw-inset-0 tw-flex tw-items-center tw-justify-center">
           <LoadingIndicator
             isLoading={true}
             size="small"

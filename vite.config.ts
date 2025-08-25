@@ -5,6 +5,7 @@ import { resolve } from 'path'
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
+  base: './',
   resolve: {
     alias: {
       '@': resolve(__dirname, 'src'),
@@ -18,6 +19,7 @@ export default defineConfig({
         options: resolve(__dirname, 'src/options/index.html'),
         background: resolve(__dirname, 'src/background/index.ts'),
         content: resolve(__dirname, 'src/content/index.ts'),
+        'content-styles': resolve(__dirname, 'src/content/styles.css'),
       },
       output: {
         entryFileNames: (chunkInfo) => {
@@ -27,9 +29,12 @@ export default defineConfig({
         },
         chunkFileNames: 'chunks/[name].[hash].js',
         assetFileNames: (assetInfo) => {
-          if (assetInfo.name === 'popup.css') return 'popup/index.css'
-          if (assetInfo.name === 'options.css') return 'options/index.css'
-          if (assetInfo.name?.endsWith('.css')) return 'content/styles.css'
+          if (assetInfo.name?.endsWith('.css')) {
+            if (assetInfo.name.includes('content-styles') || assetInfo.name.includes('styles')) {
+              return 'content/styles.css'
+            }
+            return '[name]/index.css'
+          }
           return 'assets/[name].[ext]'
         }
       },

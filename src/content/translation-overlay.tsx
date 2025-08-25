@@ -60,8 +60,20 @@ const TranslationOverlay: React.FC<TranslationOverlayProps> = ({
       }
     };
 
+    // Prevent text selection within overlay from triggering translation
+    const handleSelectStart = (event: Event) => {
+      if (overlayRef.current && overlayRef.current.contains(event.target as Node)) {
+        // Allow selection within overlay but mark it as internal
+        (event.target as any).__transaiInternal = true;
+      }
+    };
+
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener('selectstart', handleSelectStart);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('selectstart', handleSelectStart);
+    };
   }, [onClose]);
 
   // Handle escape key to close
@@ -297,58 +309,59 @@ const TranslationOverlay: React.FC<TranslationOverlayProps> = ({
     <div
       ref={overlayRef}
       style={getOverlayStyle()}
-      className="transai-overlay bg-white rounded-lg shadow-xl border border-gray-200 p-4 max-w-sm"
+      className="transai-overlay tw-bg-white tw-rounded-lg tw-shadow-xl tw-border tw-border-gray-200 tw-p-4 tw-max-w-sm"
+      data-transai-overlay="true"
     >
       {/* Header */}
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center space-x-2">
-          <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-          <span className="text-sm font-medium text-gray-700">TransAI</span>
+      <div className="tw-flex tw-items-center tw-justify-between tw-mb-3">
+        <div className="tw-flex tw-items-center tw-space-x-2">
+          <div className="tw-w-2 tw-h-2 tw-bg-blue-500 tw-rounded-full"></div>
+          <span className="tw-text-sm tw-font-medium tw-text-gray-700">TransAI</span>
         </div>
         <button
           onClick={onClose}
-          className="text-gray-400 hover:text-gray-600 transition-colors"
+          className="tw-text-gray-400 hover:tw-text-gray-600 tw-transition-colors"
           aria-label="Close translation"
         >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="tw-w-4 tw-h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
           </svg>
         </button>
       </div>
 
       {/* Selected text */}
-      <div className="mb-3">
-        <div className="text-xs text-gray-500 mb-1">Selected text:</div>
-        <div className="text-sm font-medium text-gray-900 bg-gray-50 rounded px-2 py-1">
+      <div className="tw-mb-3">
+        <div className="tw-text-xs tw-text-gray-500 tw-mb-1">Selected text:</div>
+        <div className="tw-text-sm tw-font-medium tw-text-gray-900 tw-bg-gray-50 tw-rounded tw-px-2 tw-py-1">
           {selection.text}
         </div>
       </div>
 
       {/* Loading state */}
       {state.isLoading && (
-        <div className="flex items-center justify-center py-6">
-          <div className="flex items-center space-x-2">
-            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
-            <span className="text-sm text-gray-600">Translating...</span>
+        <div className="tw-flex tw-items-center tw-justify-center tw-py-6">
+          <div className="tw-flex tw-items-center tw-space-x-2">
+            <div className="tw-animate-spin tw-rounded-full tw-h-4 tw-w-4 tw-border-b-2 tw-border-blue-500"></div>
+            <span className="tw-text-sm tw-text-gray-600">Translating...</span>
           </div>
         </div>
       )}
 
       {/* Error state */}
       {state.error && !state.isLoading && (
-        <div className="py-4">
-          <div className="text-sm text-red-600 mb-3">
-            <div className="flex items-center space-x-2">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div className="tw-py-4">
+          <div className="tw-text-sm tw-text-red-600 tw-mb-3">
+            <div className="tw-flex tw-items-center tw-space-x-2">
+              <svg className="tw-w-4 tw-h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
               <span>Translation failed</span>
             </div>
-            <div className="text-xs text-gray-500 mt-1">{state.error}</div>
+            <div className="tw-text-xs tw-text-gray-500 tw-mt-1">{state.error}</div>
           </div>
           <button
             onClick={handleRetry}
-            className="w-full bg-blue-500 hover:bg-blue-600 text-white text-sm py-2 px-3 rounded transition-colors"
+            className="tw-w-full tw-bg-blue-500 hover:tw-bg-blue-600 tw-text-white tw-text-sm tw-py-2 tw-px-3 tw-rounded tw-transition-colors"
           >
             Try Again
           </button>
@@ -357,11 +370,11 @@ const TranslationOverlay: React.FC<TranslationOverlayProps> = ({
 
       {/* Translation result */}
       {state.translation && !state.isLoading && (
-        <div className="space-y-3">
+        <div className="tw-space-y-3">
           {/* Original word with pronunciation */}
           <div>
-            <div className="text-xs text-gray-500 mb-1">Original:</div>
-            <div className="flex items-center space-x-2 text-sm text-gray-900 bg-gray-50 rounded px-2 py-2">
+            <div className="tw-text-xs tw-text-gray-500 tw-mb-1">Original:</div>
+            <div className="tw-flex tw-items-center tw-space-x-2 tw-text-sm tw-text-gray-900 tw-bg-gray-50 tw-rounded tw-px-2 tw-py-2">
               <span>{selection.text}</span>
               <PronunciationButton
                 word={selection.text}
@@ -374,8 +387,8 @@ const TranslationOverlay: React.FC<TranslationOverlayProps> = ({
 
           {/* Translation with pronunciation */}
           <div>
-            <div className="text-xs text-gray-500 mb-1">Translation:</div>
-            <div className="flex items-center space-x-2 text-sm text-gray-900 bg-blue-50 rounded px-2 py-2">
+            <div className="tw-text-xs tw-text-gray-500 tw-mb-1">Translation:</div>
+            <div className="tw-flex tw-items-center tw-space-x-2 tw-text-sm tw-text-gray-900 tw-bg-blue-50 tw-rounded tw-px-2 tw-py-2">
               <span>{state.translation.translatedText}</span>
               <PronunciationButton
                 word={state.translation.translatedText}
@@ -389,8 +402,8 @@ const TranslationOverlay: React.FC<TranslationOverlayProps> = ({
           {/* Examples */}
           {state.translation.examples && state.translation.examples.length > 0 && (
             <div>
-              <div className="text-xs text-gray-500 mb-1">Example:</div>
-              <div className="text-xs text-gray-700 bg-gray-50 rounded px-2 py-1">
+              <div className="tw-text-xs tw-text-gray-500 tw-mb-1">Example:</div>
+              <div className="tw-text-xs tw-text-gray-700 tw-bg-gray-50 tw-rounded tw-px-2 tw-py-1">
                 {state.translation.examples[0].translated}
               </div>
             </div>
@@ -398,26 +411,26 @@ const TranslationOverlay: React.FC<TranslationOverlayProps> = ({
 
           {/* Vocabulary Status */}
           {state.vocabularyMessage && (
-            <div className={`text-xs p-2 rounded mb-2 ${
+            <div className={`tw-text-xs tw-p-2 tw-rounded tw-mb-2 ${
               state.vocabularyStatus === 'added' 
-                ? 'bg-green-100 text-green-700 border border-green-200'
+                ? 'tw-bg-green-100 tw-text-green-700 tw-border tw-border-green-200'
                 : state.vocabularyStatus === 'exists'
-                ? 'bg-blue-100 text-blue-700 border border-blue-200'
-                : 'bg-red-100 text-red-700 border border-red-200'
+                ? 'tw-bg-blue-100 tw-text-blue-700 tw-border tw-border-blue-200'
+                : 'tw-bg-red-100 tw-text-red-700 tw-border tw-border-red-200'
             }`}>
-              <div className="flex items-center space-x-1">
+              <div className="tw-flex tw-items-center tw-space-x-1">
                 {state.vocabularyStatus === 'added' && (
-                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="tw-w-3 tw-h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
                 )}
                 {state.vocabularyStatus === 'exists' && (
-                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="tw-w-3 tw-h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                 )}
                 {state.vocabularyStatus === 'error' && (
-                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="tw-w-3 tw-h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                 )}
@@ -427,46 +440,46 @@ const TranslationOverlay: React.FC<TranslationOverlayProps> = ({
           )}
 
           {/* Actions */}
-          <div className="flex space-x-2 pt-2">
+          <div className="tw-flex tw-space-x-2 tw-pt-2">
             {onAddToVocabulary && (
               <button
                 onClick={handleAddToVocabulary}
                 disabled={state.vocabularyStatus === 'adding' || state.vocabularyStatus === 'exists' || state.vocabularyStatus === 'added'}
-                className={`flex-1 text-white text-xs py-2 px-3 rounded transition-colors flex items-center justify-center space-x-1 ${
+                className={`tw-flex-1 tw-text-white tw-text-xs tw-py-2 tw-px-3 tw-rounded tw-transition-colors tw-flex tw-items-center tw-justify-center tw-space-x-1 ${
                   state.vocabularyStatus === 'adding'
-                    ? 'bg-gray-400 cursor-not-allowed'
+                    ? 'tw-bg-gray-400 tw-cursor-not-allowed'
                     : state.vocabularyStatus === 'exists' || state.vocabularyStatus === 'added'
-                    ? 'bg-gray-400 cursor-not-allowed'
-                    : 'bg-green-500 hover:bg-green-600'
+                    ? 'tw-bg-gray-400 tw-cursor-not-allowed'
+                    : 'tw-bg-green-500 hover:tw-bg-green-600'
                 }`}
               >
                 {state.vocabularyStatus === 'adding' ? (
                   <>
-                    <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
+                    <div className="tw-animate-spin tw-rounded-full tw-h-3 tw-w-3 tw-border-b-2 tw-border-white"></div>
                     <span>Adding...</span>
                   </>
                 ) : state.vocabularyStatus === 'checking' ? (
                   <>
-                    <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
+                    <div className="tw-animate-spin tw-rounded-full tw-h-3 tw-w-3 tw-border-b-2 tw-border-white"></div>
                     <span>Checking...</span>
                   </>
                 ) : state.vocabularyStatus === 'exists' ? (
                   <>
-                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="tw-w-3 tw-h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
                     <span>In Vocabulary</span>
                   </>
                 ) : state.vocabularyStatus === 'added' ? (
                   <>
-                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="tw-w-3 tw-h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
                     <span>Added!</span>
                   </>
                 ) : (
                   <>
-                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="tw-w-3 tw-h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                     </svg>
                     <span>Add to Vocabulary</span>
@@ -476,7 +489,7 @@ const TranslationOverlay: React.FC<TranslationOverlayProps> = ({
             )}
             <button
               onClick={onClose}
-              className="flex-1 bg-gray-500 hover:bg-gray-600 text-white text-xs py-2 px-3 rounded transition-colors"
+              className="tw-flex-1 tw-bg-gray-500 hover:tw-bg-gray-600 tw-text-white tw-text-xs tw-py-2 tw-px-3 tw-rounded tw-transition-colors"
             >
               Close
             </button>

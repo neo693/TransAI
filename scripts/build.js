@@ -1,5 +1,5 @@
 import { execSync } from 'child_process'
-import { copyFileSync, mkdirSync, rmSync, existsSync } from 'fs'
+import { copyFileSync, mkdirSync, rmSync, existsSync, readFileSync, writeFileSync } from 'fs'
 import { resolve, dirname } from 'path'
 import { fileURLToPath } from 'url'
 
@@ -48,10 +48,25 @@ try {
   mkdirSync(resolve(projectRoot, 'dist/popup'), { recursive: true })
   mkdirSync(resolve(projectRoot, 'dist/options'), { recursive: true })
 
-  // Move HTML files
+  // Move HTML files and fix paths
   try {
-    execSync('mv dist/src/popup/index.html dist/popup/', { cwd: projectRoot })
-    execSync('mv dist/src/options/index.html dist/options/', { cwd: projectRoot })
+    // Fix popup HTML paths
+    const popupHtml = readFileSync(resolve(projectRoot, 'dist/src/popup/index.html'), 'utf8')
+    const fixedPopupHtml = popupHtml
+      .replace(/src="\.\.\/\.\.\/popup\/index\.js"/g, 'src="./index.js"')
+      .replace(/href="\.\.\/\.\.\/chunks\//g, 'href="../chunks/')
+      .replace(/href="\.\.\/\.\.\/globals\/index\.css"/g, 'href="../globals/index.css"')
+      .replace(/href="\.\.\/\.\.\/popup\/index\.css"/g, 'href="./index.css"')
+    writeFileSync(resolve(projectRoot, 'dist/popup/index.html'), fixedPopupHtml)
+    
+    // Fix options HTML paths
+    const optionsHtml = readFileSync(resolve(projectRoot, 'dist/src/options/index.html'), 'utf8')
+    const fixedOptionsHtml = optionsHtml
+      .replace(/src="\.\.\/\.\.\/options\/index\.js"/g, 'src="./index.js"')
+      .replace(/href="\.\.\/\.\.\/chunks\//g, 'href="../chunks/')
+      .replace(/href="\.\.\/\.\.\/globals\/index\.css"/g, 'href="../globals/index.css"')
+      .replace(/href="\.\.\/\.\.\/options\/index\.css"/g, 'href="./index.css"')
+    writeFileSync(resolve(projectRoot, 'dist/options/index.html'), fixedOptionsHtml)
     
     // Clean up src directory in dist
     rmSync(resolve(projectRoot, 'dist/src'), { recursive: true, force: true })

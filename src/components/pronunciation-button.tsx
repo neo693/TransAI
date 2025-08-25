@@ -83,7 +83,7 @@ export const PronunciationButton: React.FC<PronunciationButtonProps> = ({
   }, [word, language, isPlaying, showPhonetic, onError, onSuccess]);
 
   return (
-    <div className="inline-flex items-center gap-2">
+    <div className="tw-inline-flex tw-items-center tw-gap-2">
       <button
         onClick={handlePlayPronunciation}
         disabled={isPlaying}
@@ -115,14 +115,14 @@ export const PronunciationButton: React.FC<PronunciationButtonProps> = ({
 
       {/* Show phonetic transcription if available and requested */}
       {showPhonetic && phonetic && (
-        <span className="text-sm text-gray-600 font-mono">
+        <span className="tw-text-sm tw-text-gray-600 tw-font-mono">
           {phonetic}
         </span>
       )}
 
       {/* Show error message if pronunciation fails */}
       {error && (
-        <span className="text-xs text-red-500" title={error}>
+        <span className="tw-text-xs tw-text-red-500" title={error}>
           ⚠️
         </span>
       )}
@@ -173,9 +173,9 @@ export const PronunciationDisplay: React.FC<PronunciationDisplayProps> = ({
         size="sm"
       />
       
-      <span className="text-sm text-gray-600 font-mono">
+      <span className="tw-text-sm tw-text-gray-600 tw-font-mono">
         {isLoading ? (
-          <span className="animate-pulse">Loading...</span>
+          <span className="tw-animate-pulse">Loading...</span>
         ) : (
           displayPhonetic || `[${word}]`
         )}

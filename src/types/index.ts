@@ -99,7 +99,7 @@ export interface TextSelection {
 
 // Translation request options
 export interface TranslationOptions {
-  sourceLanguage?: LanguageCode;
+  sourceLanguage?: LanguageCode | 'auto';
   targetLanguage: LanguageCode;
   includeExamples: boolean;
   customPrompt?: string;

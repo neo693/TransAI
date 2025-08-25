@@ -429,7 +429,7 @@ export class TranslationService {
       );
     }
 
-    if (options.sourceLanguage && !LANGUAGE_NAMES[options.sourceLanguage]) {
+    if (options.sourceLanguage && options.sourceLanguage !== 'auto' && !LANGUAGE_NAMES[options.sourceLanguage]) {
       throw new TranslationError(
         TranslationErrorCode.LANGUAGE_NOT_SUPPORTED,
         `Source language '${options.sourceLanguage}' is not supported`
@@ -454,7 +454,7 @@ export class TranslationService {
     prompt = prompt.replace(/{text}/g, text);
     prompt = prompt.replace(/{targetLanguage}/g, LANGUAGE_NAMES[options.targetLanguage]);
     
-    if (options.sourceLanguage) {
+    if (options.sourceLanguage && options.sourceLanguage !== 'auto') {
       prompt = prompt.replace(/{sourceLanguage}/g, LANGUAGE_NAMES[options.sourceLanguage]);
     } else {
       prompt = prompt.replace(/{sourceLanguage}/g, 'the source language');

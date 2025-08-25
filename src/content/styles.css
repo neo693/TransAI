@@ -128,8 +128,8 @@
   }
 }
 
-/* Ensure our styles don't conflict with page styles */
-.transai-overlay {
+/* Ensure all TransAI classes have proper prefixes to prevent page style conflicts */
+.transai-simple-overlay {
   all: initial;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
   position: fixed;
@@ -144,7 +144,7 @@
   line-height: 1.5;
 }
 
-.transai-overlay * {
+.transai-simple-overlay * {
   box-sizing: border-box;
 }
 
