@@ -12,25 +12,45 @@ export class SimpleTranslationOverlay {
 
   show(selection: TextSelection): void {
     try {
+      console.log('[SimpleOverlay] Showing overlay for selection:', selection);
       this.hide(); // Hide any existing overlay
       this.currentSelection = selection;
       this.createOverlay(selection);
-      this.requestTranslation(selection);
+      this.requestTranslation(selection).catch(error => {
+        console.error('[SimpleOverlay] Translation request failed:', error);
+        // Still show the overlay even if translation fails
+        if (this.overlayElement) {
+          this.showError(error instanceof Error ? error.message : 'Translation failed');
+        }
+      });
     } catch (error) {
-      console.error('Failed to show translation overlay:', error);
+      console.error('[SimpleOverlay] Failed to show translation overlay:', error);
+      // Ensure cleanup on error
+      this.hide();
     }
   }
 
   hide(): void {
     if (this.overlayElement) {
-      this.overlayElement.remove();
+      console.log('[SimpleOverlay] Hiding overlay');
+      try {
+        if (document.body.contains(this.overlayElement)) {
+          this.overlayElement.remove();
+        }
+      } catch (error) {
+        console.error('[SimpleOverlay] Error removing overlay:', error);
+      }
       this.overlayElement = null;
     }
     this.currentSelection = null;
 
     // Call close callback if provided
     if (this.onClose) {
-      this.onClose();
+      try {
+        this.onClose();
+      } catch (error) {
+        console.error('[SimpleOverlay] Error in close callback:', error);
+      }
     }
   }
 
@@ -77,6 +97,8 @@ export class SimpleTranslationOverlay {
       opacity: 0;
       transform: scale(0.8);
       transition: all 0.2s ease-out;
+      pointer-events: auto;
+      isolation: isolate;
     `;
 
     // Create content
@@ -136,7 +158,10 @@ export class SimpleTranslationOverlay {
         document.removeEventListener('mousedown', handleClickOutside);
       }
     };
-    document.addEventListener('mousedown', handleClickOutside);
+    // Use setTimeout to avoid immediate closing if the click that triggered the overlay is still propagating
+    setTimeout(() => {
+      document.addEventListener('mousedown', handleClickOutside);
+    }, 100);
 
     // Handle escape key
     const handleEscape = (event: KeyboardEvent) => {
@@ -149,26 +174,41 @@ export class SimpleTranslationOverlay {
 
     // Append to body
     document.body.appendChild(this.overlayElement);
+    console.log('[SimpleOverlay] Overlay element appended to body');
 
     // Show with animation
-    setTimeout(() => {
-      if (this.overlayElement) {
+    requestAnimationFrame(() => {
+      if (this.overlayElement && document.body.contains(this.overlayElement)) {
         this.overlayElement.style.opacity = '1';
         this.overlayElement.style.transform = 'scale(1)';
+        console.log('[SimpleOverlay] Overlay animation triggered');
+      } else {
+        console.warn('[SimpleOverlay] Overlay element was removed before animation');
       }
-    }, 10);
+    });
   }
 
   private async requestTranslation(selection: TextSelection): Promise<void> {
     try {
-      console.log('Requesting translation for:', selection.text);
+      console.log('[SimpleOverlay] Requesting translation for:', selection.text);
+
+      // Add timeout to prevent hanging
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Translation request timeout')), 10000);
+      });
 
       // Get config to find default target language
-      const configResponse = await chrome.runtime.sendMessage({
+      const configPromise = chrome.runtime.sendMessage({
         id: `get_config_${Date.now()}`,
         type: MessageType.GET_CONFIG,
         timestamp: Date.now()
       });
+
+      const configResponse = await Promise.race([configPromise, timeoutPromise]) as any;
+
+      if (!configResponse || !configResponse.payload) {
+        throw new Error('Failed to get configuration');
+      }
 
       const config: UserConfig = configResponse.payload.data;
       const targetLanguage = config?.defaultTargetLanguage || 'en';
@@ -187,20 +227,32 @@ export class SimpleTranslationOverlay {
         }
       };
 
-      console.log('Sending translation message:', translateMessage);
-      const response = await chrome.runtime.sendMessage(translateMessage);
-      console.log('Translation response:', response);
+      console.log('[SimpleOverlay] Sending translation message:', translateMessage);
+
+      const translatePromise = chrome.runtime.sendMessage(translateMessage);
+      const response = await Promise.race([translatePromise, timeoutPromise]) as any;
+
+      console.log('[SimpleOverlay] Translation response:', response);
+
+      if (!response) {
+        throw new Error('No response from translation service');
+      }
 
       if (response.type === MessageType.TRANSLATION_RESULT) {
         this.showTranslationResult(response.payload.result);
       } else if (response.type === MessageType.SUCCESS && response.payload.data) {
         this.showTranslationResult(response.payload.data);
-      } else {
+      } else if (response.type === MessageType.ERROR) {
         this.showError(response.payload?.error || 'Translation failed');
+      } else {
+        this.showError('Unexpected response format');
       }
     } catch (error) {
-      console.error('Translation request failed:', error);
-      this.showError(error instanceof Error ? error.message : 'Translation failed');
+      console.error('[SimpleOverlay] Translation request failed:', error);
+      // Check if overlay still exists before showing error
+      if (this.overlayElement) {
+        this.showError(error instanceof Error ? error.message : 'Translation failed');
+      }
     }
   }
 
