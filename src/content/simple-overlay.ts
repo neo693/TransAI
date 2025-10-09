@@ -174,7 +174,7 @@ export class SimpleTranslationOverlay {
       const targetLanguage = config?.defaultTargetLanguage || 'en';
 
       const translateMessage = {
-        id: `translate_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        id: `translate_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`,
         type: MessageType.TRANSLATE_TEXT,
         timestamp: Date.now(),
         payload: {
@@ -210,9 +210,9 @@ export class SimpleTranslationOverlay {
     const contentDiv = this.overlayElement.querySelector('.transai-content');
     if (!contentDiv) return;
 
-    // Add speaker button to original text
+    // Add speaker button to original text (only if not already added)
     const selectedTextDiv = this.overlayElement.querySelector('.transai-selected-text div:last-child');
-    if (selectedTextDiv) {
+    if (selectedTextDiv && !selectedTextDiv.querySelector('.transai-play-btn')) {
       const playBtn = this.createPronunciationButton(result.originalText, result.sourceLanguage);
       selectedTextDiv.appendChild(playBtn);
     }
