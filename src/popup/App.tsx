@@ -104,7 +104,7 @@ interface SearchBarProps {
 
 interface SentenceGenerationProps {
   vocabularyItems: VocabularyItem[];
-  onGenerate: (words: string[], count: number) => void;
+  onGenerate: (words: string[], count: number, sourceLanguage?: LanguageCode) => void;
   loading: boolean;
   generatedContent?: GeneratedContent;
   onSaveContent?: (content: GeneratedContent) => void;
@@ -125,7 +125,7 @@ interface GeneratedContentDisplayProps {
 
 interface ArticleGenerationProps {
   vocabularyItems: VocabularyItem[];
-  onGenerate: (words: string[], topic?: string) => void;
+  onGenerate: (words: string[], topic?: string, sourceLanguage?: LanguageCode) => void;
   loading: boolean;
   generatedContent?: GeneratedContent;
   onSaveContent?: (content: GeneratedContent) => void;
@@ -453,8 +453,8 @@ const WordSelection: React.FC<WordSelectionProps> = ({
 // Generated Content Display Component
 const GeneratedContentDisplay: React.FC<GeneratedContentDisplayProps> = ({
   content,
-  onSave,
-  onPractice
+  // onSave,
+  // onPractice
 }) => {
   const [showFullContent, setShowFullContent] = useState(false);
 
@@ -478,7 +478,7 @@ const GeneratedContentDisplay: React.FC<GeneratedContentDisplayProps> = ({
           Generated {content.type === 'sentence' ? 'Sentences' : 'Article'}
         </span>
         <span className="text-xs text-gray-500">
-          {content.generatedAt.toLocaleTimeString()}
+          {new Date(content.generatedAt).toLocaleTimeString()}
         </span>
       </div>
 
@@ -517,7 +517,7 @@ const GeneratedContentDisplay: React.FC<GeneratedContentDisplayProps> = ({
         >
           Copy
         </button>
-        {onSave && (
+        {/* {onSave && (
           <button
             onClick={() => onSave(content)}
             className="flex-1 px-3 py-1 text-xs font-medium text-white bg-blue-600 rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -532,7 +532,7 @@ const GeneratedContentDisplay: React.FC<GeneratedContentDisplayProps> = ({
           >
             Practice
           </button>
-        )}
+        )} */}
       </div>
     </div>
   );
@@ -826,13 +826,16 @@ const SentenceGeneration: React.FC<SentenceGenerationProps> = ({
   onSaveContent
 }) => {
   const [selectedWords, setSelectedWords] = useState<string[]>([]);
-  const [sentenceCount, setSentenceCount] = useState(3);
+  const [sentenceCount] = useState(1);
   const [practiceMode, setPracticeMode] = useState(false);
   const [practiceIndex, setPracticeIndex] = useState(0);
 
   const handleGenerate = () => {
     if (selectedWords.length > 0) {
-      onGenerate(selectedWords, sentenceCount);
+      // Get source language from the first selected word
+      const firstWord = vocabularyItems.find(item => item.word === selectedWords[0]);
+      const sourceLanguage = firstWord?.sourceLanguage || 'en';
+      onGenerate(selectedWords, sentenceCount, sourceLanguage);
     }
   };
 
@@ -914,7 +917,7 @@ const SentenceGeneration: React.FC<SentenceGenerationProps> = ({
             />
 
             <div className="flex items-center gap-3 pt-3">
-              <div className="flex items-center gap-2">
+              {/* <div className="flex items-center gap-2">
                 <label className="text-xs font-medium text-gray-700">Count:</label>
                 <select
                   value={sentenceCount}
@@ -927,7 +930,7 @@ const SentenceGeneration: React.FC<SentenceGenerationProps> = ({
                   <option value={5}>5</option>
                   <option value={8}>8</option>
                 </select>
-              </div>
+              </div> */}
 
               <button
                 onClick={handleGenerate}
@@ -966,7 +969,10 @@ const ArticleGeneration: React.FC<ArticleGenerationProps> = ({
 
   const handleGenerate = () => {
     if (selectedWords.length > 0) {
-      onGenerate(selectedWords, topic.trim() || undefined);
+      // Get source language from the first selected word
+      const firstWord = vocabularyItems.find(item => item.word === selectedWords[0]);
+      const sourceLanguage = firstWord?.sourceLanguage || 'en';
+      onGenerate(selectedWords, topic.trim() || undefined, sourceLanguage);
     }
   };
 
@@ -1131,7 +1137,7 @@ const ArticleGeneration: React.FC<ArticleGenerationProps> = ({
           </div>
 
           {/* Article-based learning exercises */}
-          <div className="p-3 bg-blue-50 rounded-lg">
+          {/* <div className="p-3 bg-blue-50 rounded-lg">
             <div className="text-xs font-medium text-blue-800 mb-2">Learning Exercise</div>
             <div className="text-xs text-blue-700 mb-2">
               Try to identify and understand each vocabulary word in context.
@@ -1151,7 +1157,7 @@ const ArticleGeneration: React.FC<ArticleGenerationProps> = ({
                 Show Answers
               </button>
             </div>
-          </div>
+          </div> */}
         </div>
       )}
     </div>
@@ -1591,7 +1597,7 @@ function App() {
   }, []);
 
   // Handle sentence generation
-  const handleGenerateSentences = useCallback(async (words: string[], count: number) => {
+  const handleGenerateSentences = useCallback(async (words: string[], count: number, sourceLanguage?: LanguageCode) => {
     setContentGenerationLoading(true);
     try {
       // Send message to background service
@@ -1602,14 +1608,20 @@ function App() {
         payload: {
           words,
           count,
-          customPrompt: undefined
+          customPrompt: undefined,
+          sourceLanguage
         }
       };
 
       const response = await chrome.runtime.sendMessage(message);
 
       if (response.type === MessageType.CONTENT_GENERATED) {
-        setGeneratedContent(response.payload.content);
+        // Convert generatedAt from string to Date object
+        const content = {
+          ...response.payload.content,
+          generatedAt: new Date(response.payload.content.generatedAt)
+        };
+        setGeneratedContent(content);
       } else if (response.type === 'ERROR') {
         console.error('Content generation failed:', response.payload.error);
         // Could show error toast here
@@ -1622,7 +1634,7 @@ function App() {
   }, []);
 
   // Handle article generation
-  const handleGenerateArticle = useCallback(async (words: string[], topic?: string) => {
+  const handleGenerateArticle = useCallback(async (words: string[], topic?: string, sourceLanguage?: LanguageCode) => {
     setContentGenerationLoading(true);
     try {
       // Send message to background service
@@ -1633,14 +1645,20 @@ function App() {
         payload: {
           words,
           topic,
-          customPrompt: undefined
+          customPrompt: undefined,
+          sourceLanguage
         }
       };
 
       const response = await chrome.runtime.sendMessage(message);
 
       if (response.type === MessageType.CONTENT_GENERATED) {
-        setGeneratedContent(response.payload.content);
+        // Convert generatedAt from string to Date object
+        const content = {
+          ...response.payload.content,
+          generatedAt: new Date(response.payload.content.generatedAt)
+        };
+        setGeneratedContent(content);
       } else if (response.type === 'ERROR') {
         console.error('Article generation failed:', response.payload.error);
         // Could show error toast here

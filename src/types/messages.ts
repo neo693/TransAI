@@ -140,6 +140,7 @@ export interface GenerateSentencesMessage extends BaseMessage {
     words: string[];
     count: number;
     customPrompt?: string;
+    sourceLanguage?: LanguageCode;
   };
 }
 
@@ -149,6 +150,7 @@ export interface GenerateArticleMessage extends BaseMessage {
     words: string[];
     topic?: string;
     customPrompt?: string;
+    sourceLanguage?: LanguageCode;
   };
 }
 

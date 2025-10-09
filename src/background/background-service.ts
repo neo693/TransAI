@@ -521,11 +521,16 @@ export class BackgroundService {
         );
       }
 
+      // Use source language from message (vocabulary word language), default to 'en'
+      const targetLanguage = message.payload.sourceLanguage || 'en';
+
       const result = await this.contentGenerationService.generateSentences(
         message.payload.words,
         {
           count: message.payload.count,
-          customPrompt: message.payload.customPrompt
+          customPrompt: message.payload.customPrompt,
+          targetLanguage: targetLanguage,
+          includeTranslation: true  // Always include translation
         }
       );
 
@@ -553,11 +558,16 @@ export class BackgroundService {
         );
       }
 
+      // Use source language from message (vocabulary word language), default to 'en'
+      const targetLanguage = message.payload.sourceLanguage || 'en';
+
       const result = await this.contentGenerationService.generateArticle(
         message.payload.words,
         {
           topic: message.payload.topic,
-          customPrompt: message.payload.customPrompt
+          customPrompt: message.payload.customPrompt,
+          targetLanguage: targetLanguage,
+          includeTranslation: true  // Always include translation
         }
       );
 
