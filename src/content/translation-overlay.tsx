@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createRoot, Root } from 'react-dom/client';
-import { TranslationResult, TextSelection, LanguageCode } from '../types/index';
+import { TranslationResult, TextSelection } from '../types/index';
 import { PronunciationButton } from '../components/pronunciation-button';
 
 interface TranslationOverlayProps {
@@ -198,7 +198,9 @@ const TranslationOverlay: React.FC<TranslationOverlayProps> = ({
           word: selection.text,
           translation: state.translation.translatedText,
           context: selection.context,
-          sourceUrl: selection.url
+          sourceUrl: selection.url,
+          sourceLanguage: state.translation.sourceLanguage,
+          targetLanguage: state.translation.targetLanguage
         }
       };
       
@@ -378,7 +380,7 @@ const TranslationOverlay: React.FC<TranslationOverlayProps> = ({
               <span>{selection.text}</span>
               <PronunciationButton
                 word={selection.text}
-                language={state.translation.sourceLanguage as LanguageCode}
+                language={state.translation.sourceLanguage}
                 size="sm"
                 onError={(error) => console.warn('Pronunciation error:', error)}
               />
@@ -392,7 +394,7 @@ const TranslationOverlay: React.FC<TranslationOverlayProps> = ({
               <span>{state.translation.translatedText}</span>
               <PronunciationButton
                 word={state.translation.translatedText}
-                language={state.translation.targetLanguage as LanguageCode}
+                language={state.translation.targetLanguage}
                 size="sm"
                 onError={(error) => console.warn('Pronunciation error:', error)}
               />

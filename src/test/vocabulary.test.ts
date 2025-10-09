@@ -81,7 +81,10 @@ describe('VocabularyStore', () => {
         'hello',
         'hola',
         'greeting someone',
-        'https://example.com'
+        'https://example.com',
+        undefined,
+        'en',
+        'es'
       );
 
       expect(result.success).toBe(true);
@@ -101,7 +104,10 @@ describe('VocabularyStore', () => {
         'HELLO', // Different case
         'updated translation',
         'updated context',
-        'https://example.com'
+        'https://example.com',
+        undefined,
+        'en',
+        'es'
       );
 
       expect(result.success).toBe(true);
@@ -120,7 +126,9 @@ describe('VocabularyStore', () => {
         'hola',
         'greeting',
         'https://example.com',
-        '/həˈloʊ/'
+        '/həˈloʊ/',
+        'en',
+        'es'
       );
 
       expect(result.success).toBe(true);
@@ -130,7 +138,7 @@ describe('VocabularyStore', () => {
     it('should handle storage errors gracefully', async () => {
       vi.mocked(storageManager.getVocabulary).mockRejectedValue(new Error('Storage error'));
 
-      const result = await store.addWord('hello', 'hola', 'greeting', 'https://example.com');
+      const result = await store.addWord('hello', 'hola', 'greeting', 'https://example.com', undefined, 'en', 'es');
 
       expect(result.success).toBe(false);
       expect(result.error).toBe('Storage error');
@@ -143,7 +151,10 @@ describe('VocabularyStore', () => {
         '  hello  ',
         '  hola  ',
         '  greeting  ',
-        'https://example.com'
+        'https://example.com',
+        undefined,
+        'en',
+        'es'
       );
 
       expect(result.success).toBe(true);

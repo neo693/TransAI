@@ -10,6 +10,7 @@ import type {
   Example,
   APIProvider
 } from '../types/index.js';
+import { isLanguageCode } from '../types/utilities.js';
 import { 
   LLMClient, 
   LLMError,
@@ -52,21 +53,24 @@ Text to translate: "{text}"
 
 Translation:`,
 
-  withExamples: `Translate the following text from {sourceLanguage} to {targetLanguage}. 
-Provide the translation and 2-3 example sentences using the translated word/phrase in context.
+  withExamples: `Translate the following text to {targetLanguage}. 
+Detect the source language of the text and return its BCP-47 code.
 
 Text to translate: "{text}"
 
-Please respond in the following JSON format:
+You must respond in the following JSON format:
 {
   "translation": "the translated text",
+  "sourceLanguage": "the detected BCP-47 language code (e.g., en, es, fr)",
   "examples": [
     {
-      "original": "example sentence in {sourceLanguage}",
-      "translated": "example sentence in {targetLanguage}"
+      "original": "example sentence in the source language",
+      "translated": "example sentence in the source language (same as original)"
     }
   ]
-}`,
+}
+
+IMPORTANT: The examples should be in the SOURCE language (the language being learned), NOT in the target language. For example, if translating English to Chinese, provide English example sentences.`,
 
   contextual: `Translate the following text from {sourceLanguage} to {targetLanguage}. 
 Consider the context provided and give the most appropriate translation.
@@ -74,18 +78,21 @@ Consider the context provided and give the most appropriate translation.
 Text to translate: "{text}"
 Context: "{context}"
 
-Please respond in the following JSON format:
+You must respond in the following JSON format:
 {
   "translation": "the translated text",
+  "sourceLanguage": "the detected BCP-47 language code (e.g., en, es, fr)",
   "confidence": 0.95,
   "examples": [
     {
       "original": "example sentence in {sourceLanguage}",
-      "translated": "example sentence in {targetLanguage}",
+      "translated": "example sentence in {sourceLanguage} (same as original)",
       "context": "brief context explanation"
     }
   ]
-}`,
+}
+
+IMPORTANT: The examples should be in the SOURCE language (the language being learned), NOT in the target language.`,
 
   detailed: `You are a professional translator. Translate the following text from {sourceLanguage} to {targetLanguage}.
 Provide a high-quality translation with examples and confidence score.
@@ -95,22 +102,25 @@ Text to translate: "{text}"
 
 Requirements:
 1. Provide accurate translation
-2. Include 2-3 example sentences showing usage
+2. Include 2-3 example sentences showing usage IN THE SOURCE LANGUAGE (the language being learned)
 3. Assign confidence score (0.0-1.0)
-4. Consider cultural nuances and context
+4. Detect and return the source language BCP-47 code
 
 Please respond in the following JSON format:
 {
   "translation": "the translated text",
+  "sourceLanguage": "the detected BCP-47 language code (e.g., en, es, fr)",
   "confidence": 0.95,
   "examples": [
     {
       "original": "example sentence in {sourceLanguage}",
-      "translated": "example sentence in {targetLanguage}",
+      "translated": "example sentence in {sourceLanguage} (same as original)",
       "context": "brief context explanation if needed"
     }
   ]
-}`
+}
+
+CRITICAL: The examples MUST be in the SOURCE language (the language being learned), NOT in the target language. For example, if translating English to Chinese, provide English example sentences to help learn English.`
 };
 
 // Language name mappings for prompts
@@ -563,10 +573,16 @@ export class TranslationService {
         context: ex.context
       }));
 
+      const sourceLanguage = isLanguageCode(parsed.sourceLanguage)
+        ? parsed.sourceLanguage
+        : options.sourceLanguage && options.sourceLanguage !== 'auto'
+        ? options.sourceLanguage
+        : 'en';
+
       return {
         originalText,
         translatedText: parsed.translation || response.content,
-        sourceLanguage: options.sourceLanguage || 'auto',
+        sourceLanguage,
         targetLanguage: options.targetLanguage,
         examples,
         confidence: parsed.confidence || 0.8,
@@ -588,10 +604,14 @@ export class TranslationService {
     // For simple text responses, just use the content as translation
     const translatedText = response.content.trim();
 
+    const sourceLanguage = options.sourceLanguage && options.sourceLanguage !== 'auto' 
+      ? options.sourceLanguage 
+      : 'en';
+
     return {
       originalText,
       translatedText,
-      sourceLanguage: options.sourceLanguage || 'auto',
+      sourceLanguage,
       targetLanguage: options.targetLanguage,
       examples: [],
       confidence: 0.8, // Default confidence for text responses

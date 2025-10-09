@@ -96,7 +96,13 @@ export class StorageManager {
   async getVocabulary(): Promise<VocabularyItem[]> {
     try {
       const result = await this.getWithRetry<VocabularyItem[]>(STORAGE_KEYS.VOCABULARY);
-      return result || [];
+      if (!result) return [];
+      
+      // Convert dateAdded strings back to Date objects
+      return result.map(item => ({
+        ...item,
+        dateAdded: item.dateAdded instanceof Date ? item.dateAdded : new Date(item.dateAdded)
+      }));
     } catch (error) {
       throw this.handleStorageError(error, 'Failed to get vocabulary');
     }
@@ -107,7 +113,12 @@ export class StorageManager {
    */
   async setVocabulary(vocabulary: VocabularyItem[]): Promise<void> {
     try {
-      await this.setWithRetry(STORAGE_KEYS.VOCABULARY, vocabulary);
+      // Convert Date objects to ISO strings for storage
+      const serializedVocabulary = vocabulary.map(item => ({
+        ...item,
+        dateAdded: item.dateAdded instanceof Date ? item.dateAdded.toISOString() : item.dateAdded
+      }));
+      await this.setWithRetry(STORAGE_KEYS.VOCABULARY, serializedVocabulary);
     } catch (error) {
       throw this.handleStorageError(error, 'Failed to save vocabulary');
     }

@@ -71,6 +71,7 @@ const LANGUAGE_VOICE_MAP: Record<LanguageCode, string[]> = {
 export class TTSService {
   private synthesis: SpeechSynthesis | null = null;
   private audioCache = new Map<string, AudioCacheEntry>();
+  private phoneticCache = new Map<string, string>();
   private readonly maxCacheSize = 100;
   private readonly cacheExpiryHours = 24;
   private readonly browserAPI: CrossBrowserAPI;
@@ -108,8 +109,8 @@ export class TTSService {
 
     const voices = this.synthesis.getVoices();
     const languageCodes = LANGUAGE_VOICE_MAP[language] || [];
-    
-    return voices.filter(voice => 
+
+    return voices.filter(voice =>
       languageCodes.some(code => voice.lang.startsWith(code))
     );
   }
@@ -118,8 +119,8 @@ export class TTSService {
    * Play pronunciation for a word using TTS
    */
   public async playPronunciation(
-    word: string, 
-    language: LanguageCode, 
+    word: string,
+    language: LanguageCode,
     options: Partial<TTSOptions> = {}
   ): Promise<void> {
     try {
@@ -145,7 +146,7 @@ export class TTSService {
       // Check cache first
       const cacheKey = this.getCacheKey(word, language);
       const cachedAudio = this.getCachedAudio(cacheKey);
-      
+
       if (cachedAudio) {
         await this.playAudioBuffer(cachedAudio.audioData);
         return;
@@ -153,7 +154,7 @@ export class TTSService {
 
       // Use Web Speech API for TTS
       await this.speakWithTTS(word, language, options);
-      
+
     } catch (error) {
       throw new AudioError(
         AudioErrorCode.AUDIO_PLAYBACK_FAILED,
@@ -167,8 +168,8 @@ export class TTSService {
    * Speak text using Web Speech API
    */
   private async speakWithTTS(
-    text: string, 
-    language: LanguageCode, 
+    text: string,
+    language: LanguageCode,
     options: Partial<TTSOptions> = {}
   ): Promise<void> {
     if (!this.synthesis) {
@@ -177,7 +178,7 @@ export class TTSService {
 
     return new Promise((resolve, reject) => {
       const utterance = new SpeechSynthesisUtterance(text);
-      
+
       // Set language and voice
       const voices = this.getVoicesForLanguage(language);
       if (voices.length > 0) {
@@ -214,22 +215,22 @@ export class TTSService {
    */
   private async playAudioBuffer(audioData: ArrayBuffer): Promise<void> {
     try {
-      const AudioContextClass = (typeof window !== 'undefined' && window.AudioContext) || 
-                               (typeof window !== 'undefined' && (window as any).webkitAudioContext) ||
-                               (typeof globalThis !== 'undefined' && (globalThis as any).AudioContext) ||
-                               (typeof globalThis !== 'undefined' && (globalThis as any).webkitAudioContext);
-      
+      const AudioContextClass = (typeof window !== 'undefined' && window.AudioContext) ||
+        (typeof window !== 'undefined' && (window as any).webkitAudioContext) ||
+        (typeof globalThis !== 'undefined' && (globalThis as any).AudioContext) ||
+        (typeof globalThis !== 'undefined' && (globalThis as any).webkitAudioContext);
+
       if (!AudioContextClass) {
         throw new Error('AudioContext not supported');
       }
-      
+
       const audioContext = new AudioContextClass();
       const audioBuffer = await audioContext.decodeAudioData(audioData.slice(0));
-      
+
       const source = audioContext.createBufferSource();
       source.buffer = audioBuffer;
       source.connect(audioContext.destination);
-      
+
       return new Promise((resolve, reject) => {
         source.onended = () => resolve();
         source.onerror = () => reject(new AudioError(
@@ -251,7 +252,7 @@ export class TTSService {
    * Preload audio for multiple words
    */
   public async preloadAudio(words: string[], language: LanguageCode): Promise<void> {
-    const preloadPromises = words.map(word => 
+    const preloadPromises = words.map(word =>
       this.cacheAudioForWord(word, language).catch(error => {
         console.warn(`Failed to preload audio for "${word}":`, error);
       })
@@ -265,7 +266,7 @@ export class TTSService {
    */
   private async cacheAudioForWord(word: string, language: LanguageCode): Promise<void> {
     const cacheKey = this.getCacheKey(word, language);
-    
+
     if (this.getCachedAudio(cacheKey)) {
       return; // Already cached
     }
@@ -279,7 +280,7 @@ export class TTSService {
         timestamp: new Date(),
         language
       };
-      
+
       this.setCachedAudio(cacheKey, entry);
     } catch (error) {
       throw new AudioError(
@@ -291,116 +292,129 @@ export class TTSService {
   }
 
   /**
-   * Get phonetic transcription for a word
+   * Get phonetic transcription for a word using AI
    */
   public async getPhoneticTranscription(word: string, language: LanguageCode): Promise<string> {
     try {
-      // This is a simplified implementation
-      // In a real-world scenario, you'd integrate with a phonetic API
-      return this.generateSimplePhonetic(word, language);
+      // Check cache first
+      const cacheKey = `phonetic:${this.getCacheKey(word, language)}`;
+      const cached = this.phoneticCache.get(cacheKey);
+      if (cached) {
+        return cached;
+      }
+
+      // Generate phonetic transcription using AI
+      const phonetic = await this.generatePhoneticWithAI(word, language);
+
+      // Cache the result
+      this.phoneticCache.set(cacheKey, phonetic);
+
+      return phonetic;
+    } catch (error) {
+      console.warn(`Failed to get phonetic transcription for "${word}":`, error);
+      // Fallback to simple format
+      return `[${word}]`;
+    }
+  }
+
+  /**
+   * Generate phonetic transcription using AI model
+   */
+  private async generatePhoneticWithAI(word: string, language: LanguageCode): Promise<string> {
+    try {
+      // Get AI service from the extension
+      const aiService = await this.getAIService();
+
+      if (!aiService) {
+        throw new Error('AI service not available');
+      }
+
+      const prompt = this.buildPhoneticPrompt(word, language);
+      const response = await aiService.generateText(prompt);
+
+      // Extract phonetic notation from response
+      const phonetic = this.extractPhoneticNotation(response);
+
+      return phonetic || `[${word}]`;
     } catch (error) {
       throw new AudioError(
         AudioErrorCode.PHONETIC_API_ERROR,
-        `Failed to get phonetic transcription for "${word}": ${error instanceof Error ? error.message : 'Unknown error'}`,
+        `Failed to generate phonetic transcription: ${error instanceof Error ? error.message : 'Unknown error'}`,
         error instanceof Error ? error : undefined
       );
     }
   }
 
   /**
-   * Generate simple phonetic representation (placeholder implementation)
+   * Build prompt for AI phonetic transcription
    */
-  private generateSimplePhonetic(word: string, language: LanguageCode): string {
-    // This is a very basic implementation
-    // In production, you'd use a proper phonetic API or library
-    const phoneticMap: Record<LanguageCode, Record<string, string>> = {
-      'en': {
-        'hello': '/həˈloʊ/',
-        'world': '/wɜːrld/',
-        'water': '/ˈwɔːtər/',
-        'house': '/haʊs/',
-        'cat': '/kæt/',
-        'dog': '/dɔːɡ/'
-      },
-      'es': {
-        'hola': '/ˈola/',
-        'agua': '/ˈaɣwa/',
-        'casa': '/ˈkasa/',
-        'gato': '/ˈɡato/',
-        'perro': '/ˈpero/'
-      },
-      'fr': {
-        'bonjour': '/bon.ˈʒuʁ/',
-        'eau': '/o/',
-        'maison': '/mɛ.ˈzɔ̃/',
-        'chat': '/ʃa/',
-        'chien': '/ʃjɛ̃/'
-      },
-      'de': {
-        'hallo': '/ˈhalo/',
-        'wasser': '/ˈvasɐ/',
-        'haus': '/haʊs/',
-        'katze': '/ˈkatsə/',
-        'hund': '/hʊnt/'
-      },
-      'it': {
-        'ciao': '/ˈtʃao/',
-        'acqua': '/ˈakkwa/',
-        'casa': '/ˈkasa/',
-        'gatto': '/ˈɡatto/',
-        'cane': '/ˈkane/'
-      },
-      'pt': {
-        'olá': '/oˈla/',
-        'água': '/ˈaɡwa/',
-        'casa': '/ˈkaza/',
-        'gato': '/ˈɡatu/',
-        'cão': '/ˈkɐ̃w̃/'
-      },
-      'ru': {
-        'привет': '/prʲɪˈvʲet/',
-        'вода': '/vɐˈda/',
-        'дом': '/dom/',
-        'кот': '/kot/',
-        'собака': '/sɐˈbakə/'
-      },
-      'ja': {
-        'こんにちは': '/koɴ.ni.t͡ʃi.wa/',
-        '水': '/mi.zu/',
-        '家': '/ie/',
-        '猫': '/ne.ko/',
-        '犬': '/i.nu/'
-      },
-      'ko': {
-        '안녕하세요': '/an.njʌŋ.ha.se.jo/',
-        '물': '/mul/',
-        '집': '/t͡ʃip/',
-        '고양이': '/ko.jaŋ.i/',
-        '개': '/kɛ/'
-      },
-      'zh': {
-        '你好': '/ni˥ xaʊ̯˨˩˦/',
-        '水': '/ʂueɪ̯˨˩˦/',
-        '家': '/t͡ɕja˥/',
-        '猫': '/maʊ̯˥/',
-        '狗': '/koʊ̯˨˩˦/'
-      },
-      'ar': {
-        'مرحبا': '/mar.ħa.ban/',
-        'ماء': '/maːʔ/',
-        'بيت': '/bajt/',
-        'قطة': '/qit.ta/',
-        'كلب': '/kalb/'
-      }
+  private buildPhoneticPrompt(word: string, language: LanguageCode): string {
+    const languageNames: Record<LanguageCode, string> = {
+      'en': 'English',
+      'es': 'Spanish',
+      'fr': 'French',
+      'de': 'German',
+      'it': 'Italian',
+      'pt': 'Portuguese',
+      'ru': 'Russian',
+      'ja': 'Japanese',
+      'ko': 'Korean',
+      'zh': 'Chinese',
+      'ar': 'Arabic'
     };
 
-    const languageMap = phoneticMap[language];
-    if (languageMap && languageMap[word.toLowerCase()]) {
-      return languageMap[word.toLowerCase()];
+    const languageName = languageNames[language] || 'English';
+
+    return `Provide the IPA (International Phonetic Alphabet) pronunciation for the ${languageName} word "${word}".
+
+Requirements:
+- Return ONLY the IPA notation enclosed in forward slashes, e.g., /həˈloʊ/
+- Use standard IPA symbols appropriate for ${languageName}
+- Include stress markers (ˈ for primary stress, ˌ for secondary stress)
+- Do not include any explanations, just the IPA notation
+- If the word has multiple pronunciations, provide the most common one
+
+Example format: /wɜːrld/
+
+Word: ${word}
+IPA:`;
+  }
+
+  /**
+   * Extract phonetic notation from AI response
+   */
+  private extractPhoneticNotation(response: string): string | null {
+    // Try to extract IPA notation between forward slashes
+    const ipaMatch = response.match(/\/([^/]+)\//);
+    if (ipaMatch) {
+      return `/${ipaMatch[1]}/`;
     }
 
-    // Fallback: return word in brackets
-    return `[${word}]`;
+    // Try to extract IPA notation between square brackets
+    const bracketMatch = response.match(/\[([^\]]+)\]/);
+    if (bracketMatch) {
+      return `[${bracketMatch[1]}]`;
+    }
+
+    // If response is clean IPA without delimiters, wrap it
+    const cleanResponse = response.trim();
+    if (cleanResponse && !cleanResponse.includes('\n') && cleanResponse.length < 50) {
+      return `/${cleanResponse}/`;
+    }
+
+    return null;
+  }
+
+  /**
+   * Get AI service instance from extension
+   */
+  private async getAIService(): Promise<any> {
+    // This will be injected by the extension context
+    // For now, return null to use fallback
+    if (typeof globalThis !== 'undefined' && (globalThis as any).__transai_ai_service) {
+      return (globalThis as any).__transai_ai_service;
+    }
+    return null;
   }
 
   /**
@@ -415,13 +429,13 @@ export class TTSService {
    */
   private getCachedAudio(cacheKey: string): AudioCacheEntry | null {
     const entry = this.audioCache.get(cacheKey);
-    
+
     if (!entry) return null;
 
     // Check if cache entry is expired
     const now = new Date();
     const expiryTime = new Date(entry.timestamp.getTime() + this.cacheExpiryHours * 60 * 60 * 1000);
-    
+
     if (now > expiryTime) {
       this.audioCache.delete(cacheKey);
       return null;
@@ -459,7 +473,7 @@ export class TTSService {
     if (this.audioCache.size >= this.maxCacheSize) {
       const entries = Array.from(this.audioCache.entries());
       entries.sort((a, b) => a[1].timestamp.getTime() - b[1].timestamp.getTime());
-      
+
       const toRemove = entries.slice(0, Math.floor(this.maxCacheSize * 0.3));
       toRemove.forEach(([key]) => this.audioCache.delete(key));
     }
@@ -470,6 +484,7 @@ export class TTSService {
    */
   public clearCache(): void {
     this.audioCache.clear();
+    this.phoneticCache.clear();
   }
 
   /**

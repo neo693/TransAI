@@ -6,7 +6,8 @@ import {
   vocabularyStore,
   TranslationServiceFactory,
   ContentGenerationServiceFactory,
-  LLMClientFactory
+  LLMClientFactory,
+  audioService
 } from '../services/index';
 import {
   MessageType,
@@ -27,6 +28,7 @@ import {
   type ValidateApiKeyMessage,
   type GetStatisticsMessage,
   type UpdateStatisticsMessage,
+  type PlayPronunciationMessage,
   type UserConfig,
   type ExtensionStatistics
 } from '../types/index';
@@ -57,6 +59,7 @@ export class BackgroundService {
 
   constructor() {
     this.setupMessageHandlers();
+    this.setupStorageListener();
   }
 
   /**
@@ -65,6 +68,9 @@ export class BackgroundService {
   async initialize(): Promise<void> {
     try {
       console.log('Initializing background service...');
+
+      // Setup context menu
+      this.setupContextMenu();
 
       // Load configuration
       await this.loadConfiguration();
@@ -96,7 +102,12 @@ export class BackgroundService {
   private async loadConfiguration(): Promise<void> {
     try {
       this.config = await storageManager.getConfig();
-      console.log('Configuration loaded:', this.config ? 'Found' : 'Not found');
+      console.log('Configuration loaded:', {
+        hasConfig: !!this.config,
+        hasApiKey: !!this.config?.apiKey,
+        provider: this.config?.apiProvider,
+        apiKeyLength: this.config?.apiKey?.length || 0
+      });
     } catch (error) {
       console.warn('Failed to load configuration:', error);
       // Only throw if it's a critical error, otherwise continue with null config
@@ -117,22 +128,22 @@ export class BackgroundService {
     }
 
     try {
-      // Initialize LLM client
-      this.llmClient = LLMClientFactory.create(this.config.apiProvider, {
-        apiKey: this.config.apiKey
-      });
+      // Initialize LLM client with full configuration
+      const llmConfig = {
+        apiKey: this.config.apiKey,
+        baseUrl: this.config.apiBaseUrl,
+        model: this.config.selectedModel
+      };
+
+      this.llmClient = LLMClientFactory.create(this.config.apiProvider, llmConfig);
 
       // Initialize translation service
-      this.translationService = TranslationServiceFactory.create(this.llmClient, {
-        apiKey: this.config.apiKey
-      });
+      this.translationService = TranslationServiceFactory.createFromLLMClient(this.llmClient);
 
       // Initialize content generation service
-      this.contentGenerationService = ContentGenerationServiceFactory.create(this.llmClient, {
-        apiKey: this.config.apiKey
-      });
+      this.contentGenerationService = ContentGenerationServiceFactory.createFromLLMClient(this.llmClient);
 
-      console.log('Services initialized successfully');
+      console.log('Services initialized successfully with provider:', this.config.apiProvider);
     } catch (error) {
       console.error('Failed to initialize services:', error);
       throw new BackgroundServiceError(
@@ -195,7 +206,96 @@ export class BackgroundService {
     messageRouter.registerHandler(MessageType.GET_STATISTICS, this.handleGetStatistics.bind(this));
     messageRouter.registerHandler(MessageType.UPDATE_STATISTICS, this.handleUpdateStatistics.bind(this));
 
+    // Audio handlers
+    messageRouter.registerHandler(MessageType.PLAY_PRONUNCIATION, this.handlePlayPronunciation.bind(this));
+
     console.log('Message handlers registered');
+  }
+
+  /**
+   * Setup storage change listener to reinitialize services when config changes
+   */
+  private setupStorageListener(): void {
+    chrome.storage.onChanged.addListener((changes, areaName) => {
+      if (areaName === 'local' && changes.config) {
+        console.log('Configuration changed, reinitializing services...', {
+          oldValue: changes.config.oldValue,
+          newValue: changes.config.newValue
+        });
+        
+        this.loadConfiguration().then(() => {
+          if (this.config?.apiKey) {
+            console.log('Reinitializing services with new config...');
+            this.initializeServices().then(() => {
+              console.log('Services reinitialized successfully');
+            }).catch(error => {
+              console.error('Failed to reinitialize services after config change:', error);
+            });
+          } else {
+            console.log('No API key in new config, clearing services');
+            this.translationService = null;
+            this.contentGenerationService = null;
+            this.llmClient = null;
+          }
+        }).catch(error => {
+          console.error('Failed to reload configuration after change:', error);
+        });
+      }
+    });
+  }
+
+  /**
+   * Setup context menu for text selection
+   */
+  private setupContextMenu(): void {
+    try {
+      // Remove existing menu items first to avoid duplicates
+      chrome.contextMenus.removeAll(() => {
+        // Create the context menu item
+        chrome.contextMenus.create({
+          id: 'transai-translate',
+          title: 'trans ai',
+          contexts: ['selection']
+        }, () => {
+          if (chrome.runtime.lastError) {
+            console.error('Failed to create context menu:', chrome.runtime.lastError);
+          } else {
+            console.log('Context menu created successfully');
+          }
+        });
+      });
+
+      // Setup click listener
+      chrome.contextMenus.onClicked.addListener((info, tab) => {
+        console.log('Context menu clicked:', { menuItemId: info.menuItemId, tabId: tab?.id, selectionText: info.selectionText });
+        
+        if (info.menuItemId === 'transai-translate' && tab?.id && info.selectionText) {
+          const message = {
+            id: `show_translation_${Date.now()}`,
+            type: MessageType.SHOW_TRANSLATION_OVERLAY,
+            timestamp: Date.now(),
+            payload: {
+              text: info.selectionText
+            }
+          };
+          
+          console.log('Sending message to content script:', message);
+          
+          // Use Promise-based API to handle errors properly
+          chrome.tabs.sendMessage(tab.id, message)
+            .then((response) => {
+              console.log('Message sent successfully, response:', response);
+            })
+            .catch((error) => {
+              // This is expected if content script is not loaded on the page
+              console.warn('Could not send message to content script:', error.message || error);
+              // Optionally, you could inject the content script here if needed
+            });
+        }
+      });
+    } catch (error) {
+      console.error('Error setting up context menu:', error);
+    }
   }
 
   /**
@@ -217,6 +317,9 @@ export class BackgroundService {
    */
   private async handleTranslateText(message: TranslateTextMessage): Promise<ResponseMessage> {
     try {
+      // Always reload configuration before translation to ensure we have the latest config
+      await this.loadConfiguration();
+      
       // Check if configuration exists and has API key
       if (!this.config?.apiKey) {
         throw new BackgroundServiceError(
@@ -225,8 +328,8 @@ export class BackgroundService {
         );
       }
 
-      if (!this.translationService) {
-        // Try to initialize services if config is available
+      // Reinitialize services if they don't exist or if config has changed
+      if (!this.translationService || !this.translationService.isConfigured()) {
         await this.initializeServices();
         
         if (!this.translationService) {
@@ -284,7 +387,9 @@ export class BackgroundService {
         message.payload.translation,
         message.payload.context,
         message.payload.sourceUrl,
-        message.payload.pronunciation
+        message.payload.pronunciation,
+        message.payload.sourceLanguage,
+        message.payload.targetLanguage
       );
 
       // Update statistics
@@ -486,18 +591,34 @@ export class BackgroundService {
    */
   private async handleUpdateConfig(message: UpdateConfigMessage): Promise<ResponseMessage> {
     try {
+      console.log('Updating configuration:', message.payload.config);
+      
       // Update configuration
       const updatedConfig = await storageManager.updateConfig(message.payload.config);
       this.config = updatedConfig;
 
-      // Reinitialize services if API key changed
-      if (message.payload.config.apiKey || message.payload.config.apiProvider) {
+      console.log('Configuration updated, new config:', {
+        hasApiKey: !!updatedConfig.apiKey,
+        provider: updatedConfig.apiProvider,
+        apiKeyLength: updatedConfig.apiKey?.length || 0
+      });
+
+      // Always reinitialize services when config is updated
+      if (updatedConfig.apiKey) {
+        console.log('Reinitializing services with updated config...');
         await this.initializeServices();
+        console.log('Services reinitialized successfully');
+      } else {
+        console.log('No API key in updated config, clearing services');
+        this.translationService = null;
+        this.contentGenerationService = null;
+        this.llmClient = null;
       }
 
       return messageRouter.createSuccessResponse(message.id, updatedConfig);
 
     } catch (error) {
+      console.error('Failed to update configuration:', error);
       return this.createErrorResponse(message.id, error);
     }
   }
@@ -554,6 +675,21 @@ export class BackgroundService {
       return messageRouter.createSuccessResponse(message.id, updatedStats);
 
     } catch (error) {
+      return this.createErrorResponse(message.id, error);
+    }
+  }
+
+  /**
+   * Handle play pronunciation requests
+   */
+  private async handlePlayPronunciation(message: PlayPronunciationMessage): Promise<ResponseMessage> {
+    try {
+      const language = message.payload.language;
+      console.log(`Playing pronunciation for "${message.payload.word}" in language "${language}"`);
+      await audioService.playPronunciation(message.payload.word, language);
+      return messageRouter.createSuccessResponse(message.id);
+    } catch (error) {
+      console.error('Error playing pronunciation:', error);
       return this.createErrorResponse(message.id, error);
     }
   }

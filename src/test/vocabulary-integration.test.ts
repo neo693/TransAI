@@ -116,18 +116,19 @@ describe('Vocabulary Integration', () => {
         { id: '1', word: 'hello', translation: 'hola' }
       ]);
 
-      const message = {
+      const message: AddToVocabularyMessage = {
         id: 'test-4',
-        type: MessageType.ADD_TO_VOCABULARY as const,
+        type: MessageType.ADD_TO_VOCABULARY,
         timestamp: Date.now(),
         payload: {
           word: 'hello',
           translation: 'hola',
           context: 'Hello world',
-          sourceUrl: 'https://example.com'
+          sourceUrl: 'https://example.com',
+          sourceLanguage: 'en',
+          targetLanguage: 'es'
         }
       };
-
       const response = await backgroundService['handleAddToVocabulary'](message);
 
       expect(response.type).toBe(MessageType.ERROR);
@@ -154,7 +155,9 @@ describe('Vocabulary Integration', () => {
           word: 'goodbye',
           translation: 'adiós',
           context: 'Goodbye world',
-          sourceUrl: 'https://example.com'
+          sourceUrl: 'https://example.com',
+          sourceLanguage: 'en',
+          targetLanguage: 'es'
         }
       };
 
@@ -162,13 +165,15 @@ describe('Vocabulary Integration', () => {
 
       expect(response.type).toBe(MessageType.SUCCESS);
       expect((response as SuccessMessage).payload.message).toBeUndefined();
-      expect(vocabularyStore.addWord).toHaveBeenCalledWith({
-        word: 'goodbye',
-        translation: 'adiós',
-        context: 'Goodbye world',
-        sourceUrl: 'https://example.com',
-        pronunciation: undefined
-      });
+      expect(vocabularyStore.addWord).toHaveBeenCalledWith(
+        'goodbye',
+        'adiós',
+        'Goodbye world',
+        'https://example.com',
+        undefined,
+        'en',
+        'es'
+      );
     });
 
     it('should handle case-insensitive duplicate detection', async () => {
@@ -179,15 +184,17 @@ describe('Vocabulary Integration', () => {
         { id: '1', word: 'Hello', translation: 'hola' }
       ]);
 
-      const message = {
+      const message: AddToVocabularyMessage = {
         id: 'test-6',
-        type: MessageType.ADD_TO_VOCABULARY as const,
+        type: MessageType.ADD_TO_VOCABULARY,
         timestamp: Date.now(),
         payload: {
           word: 'hello',
           translation: 'hola',
           context: 'Hello world',
-          sourceUrl: 'https://example.com'
+          sourceUrl: 'https://example.com',
+          sourceLanguage: 'en',
+          targetLanguage: 'es'
         }
       };
 

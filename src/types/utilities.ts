@@ -171,6 +171,12 @@ export const SUPPORTED_LANGUAGES: Record<string, LanguageConfig> = {
   ar: { code: 'ar', name: 'Arabic', nativeName: 'العربية', rtl: true, ttsSupported: true }
 };
 
+export const LANGUAGE_CODES = Object.keys(SUPPORTED_LANGUAGES) as (keyof typeof SUPPORTED_LANGUAGES)[];
+
+export function isLanguageCode(code: any): code is keyof typeof SUPPORTED_LANGUAGES {
+  return typeof code === 'string' && LANGUAGE_CODES.includes(code as any);
+}
+
 // Type guards for runtime type checking
 export function isCreateVocabularyItem(obj: any): obj is CreateVocabularyItem {
   return !!(

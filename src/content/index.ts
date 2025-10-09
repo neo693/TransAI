@@ -59,6 +59,7 @@ function initializeContentScript() {
           // Initialize text selection and overlay handling
           initializeTextSelection();
           initializeOverlayManager();
+          setupMessageListener();
         } catch (error) {
           console.error('Failed to initialize content script components:', error);
         }
@@ -111,68 +112,10 @@ function initializeOverlayManager() {
 }
 
 // Handle overlay manual close
-function handleOverlayClose() {
-  overlayManuallyClosed = true;
-  lastClosedTime = Date.now();
-  
-  // Clear the current text selection to prevent auto-reopening
-  const selection = window.getSelection();
-  if (selection) {
-    selection.removeAllRanges();
-  }
-}
-
-// Track if overlay was manually closed to prevent auto-reopening
-let overlayManuallyClosed = false;
-let lastClosedTime = 0;
+function handleOverlayClose() {}
 
 // Handle text selection changes
-function handleSelectionChange(selection: TextSelection | null) {
-  if (selection) {
-    console.log('Text selected:', selection.text);
-    
-    // Check if overlay was recently closed manually (within 1 second)
-    const now = Date.now();
-    if (overlayManuallyClosed && (now - lastClosedTime) < 1000) {
-      console.log('Overlay was recently closed manually, skipping auto-show');
-      return;
-    }
-    
-    // Reset manual close flag for new selections
-    overlayManuallyClosed = false;
-    
-    // Add visual feedback for selection
-    const feedback = document.createElement('div');
-    feedback.style.cssText = `
-      position: fixed;
-      top: 50px;
-      right: 10px;
-      background: #3b82f6;
-      color: white;
-      padding: 6px 10px;
-      border-radius: 4px;
-      font-size: 11px;
-      z-index: 999999;
-      font-family: Arial, sans-serif;
-    `;
-    feedback.textContent = `Selected: "${selection.text.substring(0, 20)}${selection.text.length > 20 ? '...' : ''}"`;
-    document.body.appendChild(feedback);
-    
-    setTimeout(() => feedback.remove(), 2000);
-    
-    // Show translation overlay
-    if (overlayManager) {
-      overlayManager.show(selection);
-    }
-  } else {
-    console.log('Selection cleared');
-    
-    // Only hide overlay if it wasn't manually closed
-    if (overlayManager && !overlayManuallyClosed) {
-      overlayManager.hide();
-    }
-  }
-}
+function handleSelectionChange(_selection: TextSelection | null) {}
 
 // Handle adding words to vocabulary
 function handleAddToVocabulary(word: string, translation: string) {
@@ -202,6 +145,55 @@ function handleAddToVocabulary(word: string, translation: string) {
   }).catch((error) => {
     console.error('Error adding word to vocabulary:', error);
   });
+}
+
+// Setup message listener for background script messages
+function setupMessageListener() {
+  chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+    console.log('Content script received message:', message);
+    
+    if (message.type === 'SHOW_TRANSLATION_OVERLAY') {
+      console.log('Received SHOW_TRANSLATION_OVERLAY message:', message);
+      
+      if (!overlayManager) {
+        console.error('Overlay manager not initialized');
+        sendResponse({ success: false, error: 'Overlay manager not initialized' });
+        return true;
+      }
+      
+      if (!message.payload?.text) {
+        console.error('No text in message payload');
+        sendResponse({ success: false, error: 'No text provided' });
+        return true;
+      }
+      
+      try {
+        // Create a TextSelection object from the message payload
+        const selection: TextSelection = {
+          text: message.payload.text,
+          position: {
+            x: window.innerWidth / 2,
+            y: window.innerHeight / 2
+          },
+          context: '',
+          url: window.location.href
+        };
+        
+        console.log('Showing overlay with selection:', selection);
+        overlayManager.show(selection);
+        sendResponse({ success: true });
+      } catch (error) {
+        console.error('Error showing overlay:', error);
+        sendResponse({ success: false, error: String(error) });
+      }
+      
+      return true; // Keep the message channel open for async response
+    }
+    
+    return false;
+  });
+  
+  console.log('Message listener setup complete');
 }
 
 // Cleanup on page unload

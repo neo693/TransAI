@@ -1,5 +1,5 @@
 // Simple translation overlay without React
-import { TextSelection, TranslationResult } from '../types/index';
+import { MessageType, TextSelection, TranslationResult, UserConfig } from '../types/index';
 
 export class SimpleTranslationOverlay {
   private overlayElement: HTMLDivElement | null = null;
@@ -8,7 +8,7 @@ export class SimpleTranslationOverlay {
   constructor(
     private onAddToVocabulary?: (word: string, translation: string) => void,
     private onClose?: () => void
-  ) {}
+  ) { }
 
   show(selection: TextSelection): void {
     try {
@@ -27,7 +27,7 @@ export class SimpleTranslationOverlay {
       this.overlayElement = null;
     }
     this.currentSelection = null;
-    
+
     // Call close callback if provided
     if (this.onClose) {
       this.onClose();
@@ -39,21 +39,21 @@ export class SimpleTranslationOverlay {
     this.overlayElement = document.createElement('div');
     this.overlayElement.className = 'transai-simple-overlay';
     this.overlayElement.setAttribute('data-transai-overlay', 'true');
-    
+
     // Calculate position
     const { x, y } = selection.position;
     const viewportWidth = window.innerWidth;
     const viewportHeight = window.innerHeight;
-    
+
     const overlayWidth = 320;
     const overlayHeight = 200;
-    
+
     let left = x - overlayWidth / 2;
     let top = y - overlayHeight - 10;
-    
+
     if (left < 10) left = 10;
     else if (left + overlayWidth > viewportWidth - 10) left = viewportWidth - overlayWidth - 10;
-    
+
     if (top < 10) top = y + 30;
     if (top + overlayHeight > viewportHeight - 10) top = viewportHeight - overlayHeight - 10;
 
@@ -95,7 +95,7 @@ export class SimpleTranslationOverlay {
       
       <div class="transai-selected-text" style="margin-bottom: 12px;">
         <div style="font-size: 11px; color: #6b7280; margin-bottom: 4px;">Selected text:</div>
-        <div style="font-size: 13px; font-weight: 500; color: #111827; background: #f9fafb; padding: 8px; border-radius: 4px;">
+        <div style="font-size: 13px; font-weight: 500; color: #111827; background: #f9fafb; padding: 8px; border-radius: 4px; display: flex; align-items: center; justify-content: space-between;">
           ${this.escapeHtml(selection.text)}
         </div>
       </div>
@@ -163,14 +163,24 @@ export class SimpleTranslationOverlay {
     try {
       console.log('Requesting translation for:', selection.text);
 
+      // Get config to find default target language
+      const configResponse = await chrome.runtime.sendMessage({
+        id: `get_config_${Date.now()}`,
+        type: MessageType.GET_CONFIG,
+        timestamp: Date.now()
+      });
+
+      const config: UserConfig = configResponse.payload.data;
+      const targetLanguage = config?.defaultTargetLanguage || 'en';
+
       const translateMessage = {
         id: `translate_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        type: 'TRANSLATE_TEXT',
+        type: MessageType.TRANSLATE_TEXT,
         timestamp: Date.now(),
         payload: {
           text: selection.text,
           options: {
-            targetLanguage: 'en',
+            targetLanguage,
             sourceLanguage: 'auto',
             context: selection.context
           }
@@ -181,9 +191,9 @@ export class SimpleTranslationOverlay {
       const response = await chrome.runtime.sendMessage(translateMessage);
       console.log('Translation response:', response);
 
-      if (response.type === 'TRANSLATION_RESULT') {
+      if (response.type === MessageType.TRANSLATION_RESULT) {
         this.showTranslationResult(response.payload.result);
-      } else if (response.type === 'SUCCESS' && response.payload.data) {
+      } else if (response.type === MessageType.SUCCESS && response.payload.data) {
         this.showTranslationResult(response.payload.data);
       } else {
         this.showError(response.payload?.error || 'Translation failed');
@@ -200,16 +210,22 @@ export class SimpleTranslationOverlay {
     const contentDiv = this.overlayElement.querySelector('.transai-content');
     if (!contentDiv) return;
 
+    // Add speaker button to original text
+    const selectedTextDiv = this.overlayElement.querySelector('.transai-selected-text div:last-child');
+    if (selectedTextDiv) {
+      const playBtn = this.createPronunciationButton(result.originalText, result.sourceLanguage);
+      selectedTextDiv.appendChild(playBtn);
+    }
+
+    // Check if the text is a sentence (contains multiple words)
+    const isSentence = result.originalText.trim().split(/\s+/).length > 1;
+    const showAddToVocab = this.onAddToVocabulary && !isSentence;
+
     contentDiv.innerHTML = `
       <div style="margin-bottom: 12px;">
         <div style="font-size: 11px; color: #6b7280; margin-bottom: 4px;">Translation:</div>
-        <div style="display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 500; color: #111827; background: #dbeafe; padding: 8px; border-radius: 4px;">
+        <div class="transai-translation-text" style="display: flex; align-items: center; justify-content: space-between; font-size: 14px; font-weight: 500; color: #111827; background: #dbeafe; padding: 8px; border-radius: 4px;">
           <span>${this.escapeHtml(result.translatedText)}</span>
-          <button class="transai-play-btn" style="background: none; border: none; color: #3b82f6; cursor: pointer; padding: 2px;">
-            <svg width="14" height="14" fill="currentColor" viewBox="0 0 20 20">
-              <path fill-rule="evenodd" d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.617.824L4.5 13.5H2a1 1 0 01-1-1v-5a1 1 0 011-1h2.5l3.883-3.324z" clip-rule="evenodd"/>
-            </svg>
-          </button>
         </div>
       </div>
       
@@ -223,16 +239,23 @@ export class SimpleTranslationOverlay {
       ` : ''}
       
       <div style="display: flex; gap: 8px; padding-top: 8px; border-top: 1px solid #e5e7eb;">
-        ${this.onAddToVocabulary ? `
+        ${showAddToVocab ? `
           <button class="transai-add-vocab-btn" style="flex: 1; background: #10b981; color: white; border: none; padding: 8px 12px; border-radius: 4px; font-size: 12px; cursor: pointer;">
             Add to Vocabulary
           </button>
         ` : ''}
-        <button class="transai-close-final-btn" style="flex: 1; background: #6b7280; color: white; border: none; padding: 8px 12px; border-radius: 4px; font-size: 12px; cursor: pointer;">
+        <button class="transai-close-final-btn" style="flex: 1; background: #6b7280; color: white; border: none; padding: 8px 12px; border-radius: 4px; font-size: 12px; cursor: pointer;text-align: center;">
           Close
         </button>
       </div>
     `;
+
+    // Add speaker button to translated text
+    // const translatedTextDiv = contentDiv.querySelector('.transai-translation-text');
+    // if (translatedTextDiv) {
+    //   const playBtn = this.createPronunciationButton(result.translatedText, result.targetLanguage);
+    //   translatedTextDiv.appendChild(playBtn);
+    // }
 
     // Add event listeners for new buttons
     const addVocabBtn = contentDiv.querySelector('.transai-add-vocab-btn');
@@ -280,6 +303,58 @@ export class SimpleTranslationOverlay {
         }
       });
     }
+  }
+
+  private createPronunciationButton(word: string, language: string): HTMLButtonElement {
+    const playBtn = document.createElement('button');
+    playBtn.className = 'transai-play-btn';
+    playBtn.style.cssText = `
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: #3b82f6;
+      border: none;
+      color: white;
+      cursor: pointer;
+      transition: background-color 0.2s;
+      flex-shrink: 0;
+    `;
+    playBtn.innerHTML = `
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="90%" height="90%">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+      </svg>
+    `;
+
+    playBtn.addEventListener('mouseenter', () => {
+      playBtn.style.background = '#2563eb';
+    });
+
+    playBtn.addEventListener('mouseleave', () => {
+      playBtn.style.background = '#3b82f6';
+    });
+
+    playBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      console.log('Playing pronunciation:', word, language);
+      chrome.runtime.sendMessage({
+        id: `play_audio_${Date.now()}`,
+        type: MessageType.PLAY_PRONUNCIATION,
+        timestamp: Date.now(),
+        payload: {
+          word,
+          language
+        }
+      }).then(response => {
+        console.log('Pronunciation response:', response);
+      }).catch(error => {
+        console.error('Pronunciation error:', error);
+      });
+    });
+
+    return playBtn;
   }
 
   private escapeHtml(text: string): string {

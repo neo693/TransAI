@@ -159,12 +159,21 @@ function App() {
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [successMessage, setSuccessMessage] = useState('');
-  const [activeTab, setActiveTab] = useState<'api' | 'language' | 'ui' | 'prompts' | 'export'>('api');
+  const [activeTab, setActiveTab] = useState<'api' | 'language' | 'ui' | 'prompts' | 'export' | 'permissions'>('api');
+  const [permissions, setPermissions] = useState({
+    contextMenus: false
+  });
 
-  // Load configuration on component mount
+  // Load configuration and permissions on component mount
   useEffect(() => {
     loadConfig();
+    checkPermissions();
   }, []);
+
+  const checkPermissions = async () => {
+    const hasContextMenus = await chrome.permissions.contains({ permissions: ['contextMenus'] });
+    setPermissions({ contextMenus: hasContextMenus });
+  };
 
   const loadConfig = async () => {
     try {
@@ -432,6 +441,20 @@ function App() {
     event.target.value = '';
   };
 
+  const handlePermissionToggle = async (permission: 'contextMenus') => {
+    if (permissions[permission]) {
+      const removed = await chrome.permissions.remove({ permissions: [permission] });
+      if (removed) {
+        setPermissions(prev => ({ ...prev, [permission]: false }));
+      }
+    } else {
+      const granted = await chrome.permissions.request({ permissions: [permission] });
+      if (granted) {
+        setPermissions(prev => ({ ...prev, [permission]: true }));
+      }
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -490,7 +513,8 @@ function App() {
                 { id: 'language', label: 'Language Settings' },
                 { id: 'ui', label: 'UI Preferences' },
                 { id: 'prompts', label: 'Custom Prompts' },
-                { id: 'export', label: 'Export & Import' }
+                { id: 'export', label: 'Export & Import' },
+                { id: 'permissions', label: 'Permissions' }
               ].map(tab => (
                 <button
                   key={tab.id}
@@ -854,6 +878,31 @@ function App() {
                       {errors.import && (
                         <p className="mt-2 text-sm text-red-600">{errors.import}</p>
                       )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'permissions' && (
+              <div className="space-y-6">
+                <div>
+                  <h3 className="text-lg font-medium text-gray-900 mb-4">Permissions</h3>
+                  <p className="text-sm text-gray-600 mb-6">
+                    Grant or revoke optional permissions for the extension.
+                  </p>
+
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium text-gray-800">Context Menu</p>
+                        <p className="text-sm text-gray-500">Allows the extension to add a "Translate" option to the right-click menu.</p>
+                      </div>
+                      <button
+                        onClick={() => handlePermissionToggle('contextMenus')}
+                        className={`px-4 py-2 rounded ${permissions.contextMenus ? 'bg-red-500 text-white' : 'bg-green-500 text-white'}`}>
+                        {permissions.contextMenus ? 'Revoke' : 'Grant'}
+                      </button>
                     </div>
                   </div>
                 </div>

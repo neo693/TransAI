@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { Globe, BookOpen, Sparkles, Settings, Edit2, Trash2, Volume2, Calendar, RotateCcw } from 'lucide-react';
+import React, { useState, useEffect, useCallback, Component, ErrorInfo, ReactNode } from 'react';
+import { Globe, BookOpen, Sparkles, Settings, Edit2, Trash2, Calendar, RotateCcw } from 'lucide-react';
 import { audioService } from '../services/audio.js';
 import type {
   VocabularyItem,
@@ -12,6 +12,50 @@ import { MessageType } from '../types/index.js';
 import { PronunciationButton, InlinePronunciation } from '../components/pronunciation-button.js';
 import { storageManager } from '../services/storage.js';
 import { useTranslation } from '../hooks/useTranslation.js';
+
+// Error Boundary Component
+interface ErrorBoundaryProps {
+  children: ReactNode;
+}
+
+interface ErrorBoundaryState {
+  hasError: boolean;
+  error: Error | null;
+}
+
+class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  constructor(props: ErrorBoundaryProps) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    console.error('[ErrorBoundary] Caught error:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+          <h2 className="text-lg font-semibold text-red-800 mb-2">Something went wrong</h2>
+          <p className="text-sm text-red-600 mb-2">{this.state.error?.message}</p>
+          <button
+            onClick={() => this.setState({ hasError: false, error: null })}
+            className="px-3 py-1 text-sm bg-red-600 text-white rounded hover:bg-red-700"
+          >
+            Try again
+          </button>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
 
 // Navigation tabs
 type TabType = 'translate' | 'vocabulary' | 'generate' | 'settings';
@@ -48,6 +92,8 @@ interface QuickTranslateProps {
   onTranslate: (text: string, targetLang: LanguageCode) => void;
   loading: boolean;
   result?: TranslationResult;
+  defaultTargetLang?: LanguageCode;
+  onAddToVocabulary?: (word: string, translation: string, context: string, sourceLanguage: string, targetLanguage: string) => void;
 }
 
 interface SearchBarProps {
@@ -84,9 +130,6 @@ interface ArticleGenerationProps {
   generatedContent?: GeneratedContent;
   onSaveContent?: (content: GeneratedContent) => void;
 }
-
-// Mock data and functions for development
-const mockVocabularyItems: VocabularyItem[] = [];
 
 // Vocabulary Statistics Component
 const VocabularyStats: React.FC<VocabularyStatsProps> = ({
@@ -496,10 +539,18 @@ const GeneratedContentDisplay: React.FC<GeneratedContentDisplayProps> = ({
 };
 
 // Quick Translate Component
-const QuickTranslate: React.FC<QuickTranslateProps> = ({ onTranslate, loading, result }) => {
+const QuickTranslate: React.FC<QuickTranslateProps> = ({ onTranslate, loading, result, defaultTargetLang = 'en', onAddToVocabulary }) => {
   const [text, setText] = useState('');
-  const [targetLang, setTargetLang] = useState<LanguageCode>('en');
+  const [targetLang, setTargetLang] = useState<LanguageCode>(defaultTargetLang);
   const [phonetic, setPhonetic] = useState<string>('');
+  const [originalPhonetic, setOriginalPhonetic] = useState<string>('');
+  const [addingToVocab, setAddingToVocab] = useState(false);
+  const [vocabMessage, setVocabMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+
+  // Update target language when default changes
+  useEffect(() => {
+    setTargetLang(defaultTargetLang);
+  }, [defaultTargetLang]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -508,14 +559,29 @@ const QuickTranslate: React.FC<QuickTranslateProps> = ({ onTranslate, loading, r
     }
   };
 
+  // Check if text is a single word (for phonetic display)
+  const isSingleWord = (str: string): boolean => {
+    return str.trim().split(/\s+/).length === 1;
+  };
+
   // Get phonetic transcription when translation result changes
   useEffect(() => {
     if (result) {
+      // Get phonetic for translated text
       audioService.getPhoneticTranscription(result.translatedText, result.targetLanguage as LanguageCode)
         .then(setPhonetic)
         .catch(() => setPhonetic(''));
+
+      // Get phonetic for original text if it's a single word
+      if (isSingleWord(text)) {
+        audioService.getPhoneticTranscription(text, result.sourceLanguage as LanguageCode)
+          .then(setOriginalPhonetic)
+          .catch(() => setOriginalPhonetic(''));
+      } else {
+        setOriginalPhonetic('');
+      }
     }
-  }, [result]);
+  }, [result, text]);
 
   return (
     <div className="space-y-4">
@@ -560,57 +626,190 @@ const QuickTranslate: React.FC<QuickTranslateProps> = ({ onTranslate, loading, r
       </form>
 
       {result && (
-        <div className="p-4 bg-white border border-gray-200 rounded-lg shadow-sm">
-          <div className="space-y-3">
-            {/* Original Text */}
-            <div>
-              <div className="text-xs font-medium text-gray-500 mb-1">Original:</div>
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-gray-900">{text}</span>
-                <button className="text-gray-400 hover:text-blue-500 transition-colors">
-                  <Volume2 size={14} />
-                </button>
+        <div className="bg-gradient-to-br from-white to-gray-50 border border-gray-200 rounded-xl shadow-lg overflow-hidden">
+          {/* Header with language indicator */}
+          <div className="bg-gradient-to-r from-blue-500 to-blue-600 px-4 py-2 flex items-center justify-between">
+            <div className="flex items-center gap-2 text-white text-xs font-medium">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" />
+              </svg>
+              <span>{result.sourceLanguage.toUpperCase()} → {result.targetLanguage.toUpperCase()}</span>
+            </div>
+            {result.confidence && (
+              <div className="flex items-center gap-1 text-white text-xs">
+                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                </svg>
+                <span>{Math.round(result.confidence * 100)}%</span>
+              </div>
+            )}
+          </div>
+
+          <div className="p-4 space-y-4">
+            {/* Original Text Section */}
+            <div className="bg-white rounded-lg p-3 border border-gray-100">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Original</span>
+                <div className="flex-1 h-px bg-gray-200"></div>
+              </div>
+              <div className="flex items-start gap-3">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <p className="text-base text-gray-800 leading-relaxed">{text}</p>
+                    <PronunciationButton
+                      word={text}
+                      language={result.sourceLanguage}
+                      size="sm"
+                      onError={(error) => console.warn('Pronunciation error:', error)}
+                    />
+                  </div>
+                  {originalPhonetic && (
+                    <div className="inline-flex items-center gap-2 bg-gray-50 px-3 py-1 rounded-full border border-gray-200 mt-1">
+                      <svg className="w-3 h-3 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
+                      </svg>
+                      <span className="text-sm text-gray-600 font-mono">{originalPhonetic}</span>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
-            {/* Translation */}
-            <div>
-              <div className="text-xs font-medium text-gray-500 mb-1">Translation:</div>
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-base font-medium text-gray-900">{result.translatedText}</span>
+            {/* Translation Section */}
+            <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg p-4 border border-blue-100">
+              <div className="flex items-center gap-2 mb-3">
+                <svg className="w-4 h-4 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                </svg>
+                <span className="text-xs font-semibold text-blue-700 uppercase tracking-wide">Translation</span>
+                <div className="flex-1 h-px bg-blue-200"></div>
+              </div>
+
+              <div className="flex items-start gap-3 mb-3">
+                <div className="flex-1">
+                  <p className="text-lg font-medium text-gray-900 leading-relaxed mb-2">{result.translatedText}</p>
+                  {phonetic && (
+                    <div className="inline-flex items-center gap-2 bg-white/60 backdrop-blur-sm px-3 py-1.5 rounded-full border border-blue-200">
+                      <svg className="w-3 h-3 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M18 3a1 1 0 00-1.447-.894L8.763 6H5a3 3 0 000 6h.28l1.771 5.316A1 1 0 008 18h1a1 1 0 001-1v-4.382l6.553 3.276A1 1 0 0018 15V3z" clipRule="evenodd" />
+                      </svg>
+                      <span className="text-sm text-blue-700 font-mono">{phonetic}</span>
+                    </div>
+                  )}
+                </div>
                 <PronunciationButton
                   word={result.translatedText}
-                  language={result.targetLanguage as LanguageCode}
+                  language={result.targetLanguage}
                   size="sm"
                   onError={(error) => console.warn('Pronunciation error:', error)}
                 />
               </div>
-
-              {/* Phonetic Transcription */}
-              {phonetic && (
-                <div className="text-sm text-blue-600 bg-blue-50 px-2 py-1 rounded font-mono mb-2">
-                  {phonetic}
-                </div>
-              )}
             </div>
 
-            {/* Examples */}
+            {/* Examples Section */}
             {result.examples.length > 0 && (
-              <div>
-                <div className="text-xs font-medium text-gray-500 mb-2">Examples:</div>
-                <div className="space-y-1">
-                  {result.examples.slice(0, 2).map((example, index) => (
-                    <div key={index} className="text-xs text-gray-700 bg-gray-50 rounded px-2 py-1 flex items-center gap-2">
-                      <span>• {example.translated}</span>
-                      <InlinePronunciation
-                        word={example.translated}
-                        language={result.targetLanguage as LanguageCode}
-                      />
+              <div className="bg-white rounded-lg p-3 border border-gray-100">
+                <div className="flex items-center gap-2 mb-3">
+                  <svg className="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M9 4.804A7.968 7.968 0 005.5 4c-1.255 0-2.443.29-3.5.804v10A7.969 7.969 0 015.5 14c1.669 0 3.218.51 4.5 1.385A7.962 7.962 0 0114.5 14c1.255 0 2.443.29 3.5.804v-10A7.968 7.968 0 0014.5 4c-1.255 0-2.443.29-3.5.804V12a1 1 0 11-2 0V4.804z" />
+                  </svg>
+                  <span className="text-xs font-semibold text-green-700 uppercase tracking-wide">Example Usage</span>
+                  <div className="flex-1 h-px bg-gray-200"></div>
+                </div>
+                <div className="space-y-2">
+                  {result.examples.slice(0, 3).map((example, index) => (
+                    <div key={index} className="group hover:bg-gray-50 rounded-lg p-2 transition-colors">
+                      <div className="flex items-start gap-2">
+                        <span className="flex-shrink-0 w-5 h-5 flex items-center justify-center bg-green-100 text-green-700 rounded-full text-xs font-medium mt-0.5">
+                          {index + 1}
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm text-gray-700 leading-relaxed mb-1">{example.original}</p>
+                          {example.context && (
+                            <p className="text-xs text-gray-500 italic">{example.context}</p>
+                          )}
+                        </div>
+                        <InlinePronunciation
+                          word={example.original}
+                          language={result.sourceLanguage as LanguageCode}
+                        />
+                      </div>
                     </div>
                   ))}
                 </div>
               </div>
             )}
+
+            {/* Vocabulary Status Message */}
+            {vocabMessage && (
+              <div className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm ${vocabMessage.type === 'success'
+                ? 'bg-green-50 text-green-700 border border-green-200'
+                : 'bg-red-50 text-red-700 border border-red-200'
+                }`}>
+                {vocabMessage.type === 'success' ? (
+                  <svg className="w-4 h-4 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                  </svg>
+                ) : (
+                  <svg className="w-4 h-4 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                  </svg>
+                )}
+                <span>{vocabMessage.text}</span>
+              </div>
+            )}
+
+            {/* Action Button */}
+            <div className="pt-2">
+              <button
+                onClick={async () => {
+                  if (!onAddToVocabulary || addingToVocab) return;
+
+                  setAddingToVocab(true);
+                  setVocabMessage(null);
+
+                  try {
+                    await onAddToVocabulary(
+                      text,
+                      result.translatedText,
+                      '', // context
+                      result.sourceLanguage,
+                      result.targetLanguage
+                    );
+                    setVocabMessage({ type: 'success', text: '✓ Added to vocabulary!' });
+
+                    // Clear message after 3 seconds
+                    setTimeout(() => setVocabMessage(null), 3000);
+                  } catch (error: any) {
+                    const errorMsg = error?.message || 'Failed to add to vocabulary';
+                    setVocabMessage({ type: 'error', text: errorMsg });
+
+                    // Clear error message after 5 seconds
+                    setTimeout(() => setVocabMessage(null), 5000);
+                  } finally {
+                    setAddingToVocab(false);
+                  }
+                }}
+                disabled={addingToVocab}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium text-white bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg hover:from-blue-600 hover:to-blue-700 disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 shadow-sm"
+              >
+                {addingToVocab ? (
+                  <>
+                    <svg className="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    <span>Adding...</span>
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                    </svg>
+                    <span>Add to Vocabulary</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -995,23 +1194,29 @@ const VocabularyList: React.FC<VocabularyListProps> = ({ items, onItemClick, onD
               <div className="flex items-center gap-3 mb-2">
                 <div className="flex items-center gap-2">
                   <span className="text-lg font-semibold text-gray-900">{item.word}</span>
+                  <PronunciationButton
+                    word={item.word}
+                    language={item.sourceLanguage || 'en'}
+                    size="sm"
+                    onError={(error) => console.warn('Pronunciation error:', error)}
+                  />
                   {item.pronunciation && (
                     <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded-full font-mono">
                       /{item.pronunciation}/
                     </span>
                   )}
-                  <button className="text-gray-400 hover:text-blue-500 transition-colors">
-                    <Volume2 size={16} />
-                  </button>
                 </div>
               </div>
 
               <div className="flex items-center gap-2 mb-2">
                 <span className="text-sm text-gray-600">→</span>
                 <span className="text-base text-gray-800">{item.translation}</span>
-                <button className="text-gray-400 hover:text-blue-500 transition-colors">
-                  <Volume2 size={14} />
-                </button>
+                {/* <PronunciationButton
+                  word={item.translation}
+                  language={item.targetLanguage || 'en'}
+                  size="sm"
+                  onError={(error) => console.warn('Pronunciation error:', error)}
+                /> */}
               </div>
 
               {item.context && (
@@ -1079,6 +1284,7 @@ function App() {
   const [vocabularyItems, setVocabularyItems] = useState<VocabularyItem[]>([]);
   const [filteredItems, setFilteredItems] = useState<VocabularyItem[]>([]);
   const [translationResult, setTranslationResult] = useState<TranslationResult>();
+  const [defaultTargetLang, setDefaultTargetLang] = useState<LanguageCode>('en');
 
   // Use translation hook
   const { translate, loading, error: translationError, isConfigured } = useTranslation();
@@ -1095,11 +1301,68 @@ function App() {
   const [generatedContent, setGeneratedContent] = useState<GeneratedContent>();
   const [contentGenerationLoading, setContentGenerationLoading] = useState(false);
   const [generationMode, setGenerationMode] = useState<'sentences' | 'article'>('sentences');
+  const [vocabularyLoading, setVocabularyLoading] = useState(false);
   const itemsPerPage = 5;
 
-  // Initialize vocabulary items (mock data for now)
+  // Load default target language from config
   useEffect(() => {
-    setVocabularyItems(mockVocabularyItems);
+    const loadConfig = async () => {
+      try {
+        const config = await storageManager.getConfig();
+        if (config?.defaultTargetLanguage) {
+          setDefaultTargetLang(config.defaultTargetLanguage);
+        }
+      } catch (error) {
+        console.error('Failed to load config:', error);
+      }
+    };
+    loadConfig();
+  }, []);
+
+  // Initialize vocabulary items from storage
+  useEffect(() => {
+    const loadVocabulary = async () => {
+      setVocabularyLoading(true);
+      try {
+        const message = {
+          id: `get_vocab_${Date.now()}`,
+          type: MessageType.GET_VOCABULARY,
+          timestamp: Date.now(),
+          payload: {
+            filter: {},
+            limit: 100
+          }
+        };
+
+        const response = await chrome.runtime.sendMessage(message);
+
+        if (response && response.type === MessageType.SUCCESS) {
+          // The data is in response.payload.data
+          const vocabularyData = response.payload?.data;
+
+          if (vocabularyData && vocabularyData.items) {
+            // Convert dateAdded to Date objects if they're not already
+            const items = vocabularyData.items.map((item: VocabularyItem) => ({
+              ...item,
+              dateAdded: item.dateAdded instanceof Date ? item.dateAdded : new Date(item.dateAdded)
+            }));
+            setVocabularyItems(items);
+          } else {
+            // If no items, set empty array
+            setVocabularyItems([]);
+          }
+        } else {
+          console.warn('Unexpected response type:', response?.type);
+          setVocabularyItems([]);
+        }
+      } catch (error) {
+        console.error('Failed to load vocabulary:', error);
+        setVocabularyItems([]);
+      } finally {
+        setVocabularyLoading(false);
+      }
+    };
+    loadVocabulary();
   }, []);
 
   // Calculate vocabulary statistics
@@ -1192,8 +1455,28 @@ function App() {
   }, []);
 
   // Handle vocabulary item deletion
-  const handleDeleteVocabularyItem = useCallback((id: string) => {
-    setVocabularyItems(prev => prev.filter(item => item.id !== id));
+  const handleDeleteVocabularyItem = useCallback(async (id: string) => {
+    try {
+      const message = {
+        id: `delete_vocab_${Date.now()}`,
+        type: MessageType.DELETE_VOCABULARY_ITEM,
+        timestamp: Date.now(),
+        payload: { id }
+      };
+
+      const response = await chrome.runtime.sendMessage(message);
+
+      if (response.type === MessageType.SUCCESS) {
+        // Update local state after successful deletion
+        setVocabularyItems(prev => prev.filter(item => item.id !== id));
+      } else {
+        console.error('Failed to delete vocabulary item:', response.payload?.error);
+        alert('Failed to delete vocabulary item');
+      }
+    } catch (error) {
+      console.error('Failed to delete vocabulary item:', error);
+      alert('Failed to delete vocabulary item');
+    }
   }, []);
 
   // Handle vocabulary item editing
@@ -1203,10 +1486,38 @@ function App() {
   }, []);
 
   // Handle vocabulary item save
-  const handleSaveVocabularyItem = useCallback((updatedItem: VocabularyItem) => {
-    setVocabularyItems(prev =>
-      prev.map(item => item.id === updatedItem.id ? updatedItem : item)
-    );
+  const handleSaveVocabularyItem = useCallback(async (updatedItem: VocabularyItem) => {
+    try {
+      const message = {
+        id: `update_vocab_${Date.now()}`,
+        type: MessageType.UPDATE_VOCABULARY_ITEM,
+        timestamp: Date.now(),
+        payload: {
+          id: updatedItem.id,
+          updates: {
+            word: updatedItem.word,
+            translation: updatedItem.translation,
+            context: updatedItem.context,
+            pronunciation: updatedItem.pronunciation
+          }
+        }
+      };
+
+      const response = await chrome.runtime.sendMessage(message);
+
+      if (response.type === MessageType.SUCCESS) {
+        // Update local state after successful update
+        setVocabularyItems(prev =>
+          prev.map(item => item.id === updatedItem.id ? updatedItem : item)
+        );
+      } else {
+        console.error('Failed to update vocabulary item:', response.payload?.error);
+        alert('Failed to update vocabulary item');
+      }
+    } catch (error) {
+      console.error('Failed to update vocabulary item:', error);
+      alert('Failed to update vocabulary item');
+    }
   }, []);
 
   // Handle filter changes
@@ -1214,7 +1525,70 @@ function App() {
     setVocabularyFilter(filter);
   }, []);
 
+  // Handle add to vocabulary
+  const handleAddToVocabulary = useCallback(async (
+    word: string,
+    translation: string,
+    context: string,
+    sourceLanguage: string,
+    targetLanguage: string
+  ) => {
+    try {
+      const message = {
+        id: `add_vocab_${Date.now()}`,
+        type: MessageType.ADD_TO_VOCABULARY,
+        timestamp: Date.now(),
+        payload: {
+          word,
+          translation,
+          context,
+          sourceUrl: window.location.href,
+          sourceLanguage,
+          targetLanguage
+        }
+      };
 
+      const response = await chrome.runtime.sendMessage(message);
+
+      if (response.type === MessageType.SUCCESS) {
+        // Reload vocabulary items to show the new word
+        const vocabMessage = {
+          id: `get_vocab_${Date.now()}`,
+          type: MessageType.GET_VOCABULARY,
+          timestamp: Date.now(),
+          payload: {
+            filter: {},
+            limit: 100
+          }
+        };
+
+        const vocabResponse = await chrome.runtime.sendMessage(vocabMessage);
+        console.log('Vocabulary refresh response:', vocabResponse);
+
+        if (vocabResponse && vocabResponse.type === MessageType.SUCCESS) {
+          const vocabularyData = vocabResponse.payload?.data;
+          if (vocabularyData && vocabularyData.items) {
+            // Convert dateAdded to Date objects if they're not already
+            const items = vocabularyData.items.map((item: VocabularyItem) => ({
+              ...item,
+              dateAdded: item.dateAdded instanceof Date ? item.dateAdded : new Date(item.dateAdded)
+            }));
+            setVocabularyItems(items);
+          }
+        }
+
+        return; // Success
+      } else if (response.type === MessageType.ERROR) {
+        if (response.payload?.code === 'WORD_EXISTS') {
+          throw new Error('Word already exists in vocabulary');
+        }
+        throw new Error(response.payload?.error || 'Failed to add to vocabulary');
+      }
+    } catch (error) {
+      console.error('Failed to add to vocabulary:', error);
+      throw error;
+    }
+  }, []);
 
   // Handle sentence generation
   const handleGenerateSentences = useCallback(async (words: string[], count: number) => {
@@ -1293,6 +1667,7 @@ function App() {
     { id: 'settings' as TabType, label: 'Settings', icon: Settings }
   ];
 
+
   return (
     <div className="popup-container bg-white flex flex-col overflow-hidden">
       {/* Header */}
@@ -1336,6 +1711,8 @@ function App() {
                 onTranslate={handleTranslate}
                 loading={loading}
                 result={translationResult}
+                defaultTargetLang={defaultTargetLang}
+                onAddToVocabulary={handleAddToVocabulary}
               />
             </div>
           </div>
@@ -1370,7 +1747,7 @@ function App() {
                   onItemClick={handleVocabularyItemClick}
                   onDeleteItem={handleDeleteVocabularyItem}
                   onEditItem={handleEditVocabularyItem}
-                  loading={loading}
+                  loading={vocabularyLoading}
                 />
               </div>
             </div>
@@ -1582,4 +1959,13 @@ function App() {
   );
 }
 
-export default App;
+// Wrap App with ErrorBoundary
+function AppWithErrorBoundary() {
+  return (
+    <ErrorBoundary>
+      <App />
+    </ErrorBoundary>
+  );
+}
+
+export default AppWithErrorBoundary;

@@ -4,7 +4,7 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { StorageManager, StorageError, StorageErrorCode, STORAGE_KEYS } from '../services/storage.js';
-import type { VocabularyItem, UserConfig, ExtensionStatistics } from '../types/index.js';
+import type { VocabularyItem, UserConfig, ExtensionStatistics, TranslationResult } from '../types/index.js';
 
 // Mock Chrome storage API
 const mockStorage = {
@@ -250,7 +250,7 @@ describe('StorageManager', () => {
   });
 
   describe('Cache Operations', () => {
-    const mockTranslation = {
+    const mockTranslation: TranslationResult = {
       originalText: 'hello',
       translatedText: 'hola',
       sourceLanguage: 'en',

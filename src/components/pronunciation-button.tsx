@@ -102,13 +102,12 @@ export const PronunciationButton: React.FC<PronunciationButtonProps> = ({
         aria-label={`Play pronunciation of ${word}`}
       >
         {isPlaying ? (
-          <svg className="animate-spin" fill="currentColor" viewBox="0 0 20 20" width="60%" height="60%">
-            <path fillRule="evenodd" d="M4 2a2 2 0 00-2 2v12a2 2 0 002 2h12a2 2 0 002-2V4a2 2 0 00-2-2H4zm6 9a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" />
+          <svg className="animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24" width="65%" height="65%">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
           </svg>
         ) : (
-          <svg fill="currentColor" viewBox="0 0 20 20" width="60%" height="60%">
-            <path fillRule="evenodd" d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.617.824L4.5 13.5H2a1 1 0 01-1-1v-5a1 1 0 011-1h2.5l3.883-3.324zM15 8.25a.75.75 0 01.75.75 3.5 3.5 0 010 7 .75.75 0 01-.75-.75.75.75 0 01.75-.75 2 2 0 000-4 .75.75 0 01-.75-.75z" clipRule="evenodd" />
-            <path d="M12.5 6.5a.75.75 0 011.5 0 5.5 5.5 0 010 11 .75.75 0 01-1.5 0 4 4 0 000-8 .75.75 0 010-1.5z" />
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="65%" height="65%">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
           </svg>
         )}
       </button>

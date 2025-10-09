@@ -4,7 +4,7 @@
  */
 
 import { storageManager } from './storage.js';
-import type { VocabularyItem, VocabularyFilter, ExportFormat } from '../types/index.js';
+import type { VocabularyItem, VocabularyFilter, ExportFormat, LanguageCode } from '../types/index.js';
 
 // Vocabulary operation result types
 export interface VocabularyOperationResult {
@@ -60,7 +60,9 @@ export class VocabularyStore {
     translation: string,
     context: string,
     sourceUrl: string,
-    pronunciation?: string
+    pronunciation: string | undefined,
+    sourceLanguage: LanguageCode,
+    targetLanguage: LanguageCode
   ): Promise<VocabularyOperationResult> {
     try {
       // Check for existing word (case-insensitive)
@@ -77,7 +79,9 @@ export class VocabularyStore {
         sourceUrl,
         dateAdded: existingItem?.dateAdded || new Date(),
         reviewCount: existingItem?.reviewCount || 0,
-        pronunciation
+        pronunciation,
+        sourceLanguage,
+        targetLanguage
       };
 
       await storageManager.addVocabularyItem(vocabularyItem);

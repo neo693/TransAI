@@ -8,7 +8,9 @@ import type {
   GeneratedContent,
   UserConfig,
   ExportFormat,
-  ExtensionStatistics
+  ExtensionStatistics,
+  APIProvider,
+  LanguageCode
 } from './index.js';
 
 // Base message interface
@@ -27,6 +29,7 @@ export enum MessageType {
   // Translation messages
   TRANSLATE_TEXT = 'TRANSLATE_TEXT',
   TRANSLATION_RESULT = 'TRANSLATION_RESULT',
+  SHOW_TRANSLATION_OVERLAY = 'SHOW_TRANSLATION_OVERLAY',
   
   // Vocabulary messages
   ADD_TO_VOCABULARY = 'ADD_TO_VOCABULARY',
@@ -79,6 +82,8 @@ export interface AddToVocabularyMessage extends BaseMessage {
     context: string;
     sourceUrl: string;
     pronunciation?: string;
+    sourceLanguage: LanguageCode;
+    targetLanguage: LanguageCode;
   };
 }
 
@@ -163,7 +168,7 @@ export interface ValidateApiKeyMessage extends BaseMessage {
   type: MessageType.VALIDATE_API_KEY;
   payload: {
     apiKey: string;
-    provider: string;
+    provider: APIProvider;
   };
 }
 
@@ -171,7 +176,7 @@ export interface PlayPronunciationMessage extends BaseMessage {
   type: MessageType.PLAY_PRONUNCIATION;
   payload: {
     word: string;
-    language: string;
+    language: LanguageCode;
   };
 }
 
@@ -198,6 +203,13 @@ export interface UpdateStatisticsMessage extends BaseMessage {
 export interface PingMessage extends BaseMessage {
   type: MessageType.PING;
   payload?: never;
+}
+
+export interface ShowTranslationOverlayMessage extends BaseMessage {
+  type: MessageType.SHOW_TRANSLATION_OVERLAY;
+  payload: {
+    text: string;
+  };
 }
 
 // Response message interfaces
@@ -258,7 +270,8 @@ export type RequestMessage =
   | PlayPronunciationMessage
   | GetPhoneticMessage
   | GetStatisticsMessage
-  | UpdateStatisticsMessage;
+  | UpdateStatisticsMessage
+  | ShowTranslationOverlayMessage;
 
 // Union type for all response messages
 export type ResponseMessage = 

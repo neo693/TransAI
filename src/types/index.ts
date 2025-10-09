@@ -37,8 +37,8 @@ export interface Example {
 export interface TranslationResult {
   originalText: string;
   translatedText: string;
-  sourceLanguage: string;
-  targetLanguage: string;
+  sourceLanguage: LanguageCode;
+  targetLanguage: LanguageCode;
   examples: Example[];
   confidence: number;
   timestamp: Date;
@@ -49,6 +49,8 @@ export interface VocabularyItem {
   id: string;
   word: string;
   translation: string;
+  sourceLanguage?: LanguageCode;
+  targetLanguage?: LanguageCode;
   context: string;
   sourceUrl: string;
   dateAdded: Date;

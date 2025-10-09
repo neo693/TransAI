@@ -393,4 +393,27 @@ export class TextSelector {
   public processCurrentSelection(): void {
     this.processSelection();
   }
+
+  public getSelectionInfo(text: string): TextSelection | null {
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) {
+      return null;
+    }
+
+    const selectedText = selection.toString().trim();
+    if (selectedText !== text) {
+      return null;
+    }
+
+    const range = selection.getRangeAt(0);
+    const position = this.calculateOverlayPosition(range);
+    const context = this.extractContext(range);
+
+    return {
+      text: selectedText,
+      position,
+      context,
+      url: window.location.href
+    };
+  }
 }
