@@ -257,7 +257,7 @@ export class MessageRouter {
    * Generate unique message ID
    */
   generateMessageId(): string {
-    return `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    return `msg_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
   }
 
   /**

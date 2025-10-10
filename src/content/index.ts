@@ -11,50 +11,50 @@ let overlayManager: SimpleTranslationOverlay | null = null;
 // Initialize content script
 function initializeContentScript() {
   console.log('Initializing TransAI content script on:', window.location.href);
-  
+
   // Add visual indicator that content script is loaded
-  const indicator = document.createElement('div');
-  indicator.id = 'transai-loaded-indicator';
-  indicator.style.cssText = `
-    position: fixed;
-    top: 10px;
-    right: 10px;
-    background: #10b981;
-    color: white;
-    padding: 8px 12px;
-    border-radius: 4px;
-    font-size: 12px;
-    z-index: 999999;
-    font-family: Arial, sans-serif;
-  `;
-  indicator.textContent = 'TransAI Loaded';
-  document.body.appendChild(indicator);
-  
-  // Remove indicator after 3 seconds
-  setTimeout(() => {
-    indicator.remove();
-  }, 3000);
-  
+  // const indicator = document.createElement('div');
+  // indicator.id = 'transai-loaded-indicator';
+  // indicator.style.cssText = `
+  //   position: fixed;
+  //   top: 10px;
+  //   right: 10px;
+  //   background: #10b981;
+  //   color: white;
+  //   padding: 8px 12px;
+  //   border-radius: 4px;
+  //   font-size: 12px;
+  //   z-index: 999999;
+  //   font-family: Arial, sans-serif;
+  // `;
+  // indicator.textContent = 'TransAI Loaded';
+  // document.body.appendChild(indicator);
+
+  // // Remove indicator after 3 seconds
+  // setTimeout(() => {
+  //   indicator.remove();
+  // }, 3000);
+
   try {
     // Load content script styles
     loadContentStyles();
-    
+
     // Test communication with background script
     const pingMessage = {
-      id: `ping_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      id: `ping_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`,
       type: 'PING',
       timestamp: Date.now()
     };
-    
+
     chrome.runtime.sendMessage(pingMessage, (response) => {
       if (chrome.runtime.lastError) {
         console.error('Failed to connect to background script:', chrome.runtime.lastError);
         return;
       }
-      
+
       if (response?.payload?.success) {
         console.log('Content script connected to background service worker');
-        
+
         try {
           // Initialize text selection and overlay handling
           initializeTextSelection();
@@ -75,17 +75,17 @@ function initializeContentScript() {
 // Load content script styles
 function loadContentStyles() {
   const styleId = 'transai-content-styles';
-  
+
   // Check if styles are already loaded
   if (document.getElementById(styleId)) {
     return;
   }
-  
+
   const link = document.createElement('link');
   link.id = styleId;
   link.rel = 'stylesheet';
   link.href = chrome.runtime.getURL('content/styles.css');
-  
+
   // Insert styles into head or document element
   const target = document.head || document.documentElement;
   target.appendChild(link);
@@ -96,7 +96,7 @@ function initializeTextSelection() {
   if (textSelector) {
     textSelector.destroy();
   }
-  
+
   textSelector = new TextSelector(handleSelectionChange);
   console.log('Text selection handler initialized');
 }
@@ -106,24 +106,24 @@ function initializeOverlayManager() {
   if (overlayManager) {
     overlayManager.destroy();
   }
-  
+
   overlayManager = new SimpleTranslationOverlay(handleAddToVocabulary, handleOverlayClose);
   console.log('Translation overlay manager initialized');
 }
 
 // Handle overlay manual close
-function handleOverlayClose() {}
+function handleOverlayClose() { }
 
 // Handle text selection changes
-function handleSelectionChange(_selection: TextSelection | null) {}
+function handleSelectionChange(_selection: TextSelection | null) { }
 
 // Handle adding words to vocabulary
 function handleAddToVocabulary(word: string, translation: string) {
   console.log('Adding to vocabulary:', word, '->', translation);
-  
+
   // Send message to background script to add to vocabulary
   const addMessage = {
-    id: `add_vocab_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    id: `add_vocab_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`,
     type: 'ADD_TO_VOCABULARY',
     timestamp: Date.now(),
     payload: {
@@ -133,7 +133,7 @@ function handleAddToVocabulary(word: string, translation: string) {
       sourceUrl: window.location.href
     }
   };
-  
+
   chrome.runtime.sendMessage(addMessage).then((response) => {
     if (response?.type === 'SUCCESS') {
       console.log('Word added to vocabulary successfully');
@@ -151,22 +151,22 @@ function handleAddToVocabulary(word: string, translation: string) {
 function setupMessageListener() {
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     console.log('Content script received message:', message);
-    
+
     if (message.type === 'SHOW_TRANSLATION_OVERLAY') {
       console.log('Received SHOW_TRANSLATION_OVERLAY message:', message);
-      
+
       if (!overlayManager) {
         console.error('Overlay manager not initialized');
         sendResponse({ success: false, error: 'Overlay manager not initialized' });
         return true;
       }
-      
+
       if (!message.payload?.text) {
         console.error('No text in message payload');
         sendResponse({ success: false, error: 'No text provided' });
         return true;
       }
-      
+
       try {
         // Create a TextSelection object from the message payload
         const selection: TextSelection = {
@@ -178,7 +178,7 @@ function setupMessageListener() {
           context: '',
           url: window.location.href
         };
-        
+
         console.log('Showing overlay with selection:', selection);
         overlayManager.show(selection);
         sendResponse({ success: true });
@@ -186,13 +186,13 @@ function setupMessageListener() {
         console.error('Error showing overlay:', error);
         sendResponse({ success: false, error: String(error) });
       }
-      
+
       return true; // Keep the message channel open for async response
     }
-    
+
     return false;
   });
-  
+
   console.log('Message listener setup complete');
 }
 
@@ -200,7 +200,7 @@ function setupMessageListener() {
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible') {
     console.log('[TransAI] Page became visible, checking extension connection...');
-    
+
     // Silently test connection
     testConnectionSilently();
   }
@@ -209,11 +209,11 @@ document.addEventListener('visibilitychange', () => {
 // Silently test and restore connection without bothering user
 async function testConnectionSilently() {
   try {
-    const response = await chrome.runtime.sendMessage({ 
-      type: 'PING', 
-      timestamp: Date.now() 
+    const response = await chrome.runtime.sendMessage({
+      type: 'PING',
+      timestamp: Date.now()
     });
-    
+
     if (response?.payload?.success) {
       console.log('[TransAI] Extension connection verified');
       return true;
@@ -222,7 +222,7 @@ async function testConnectionSilently() {
     // Connection failed, but don't show notice yet
     console.warn('[TransAI] Connection test failed, will retry on next use');
   }
-  
+
   return false;
 }
 
@@ -232,7 +232,7 @@ function showReconnectionNotice() {
   if (document.getElementById('transai-reconnect-notice')) {
     return;
   }
-  
+
   const notice = document.createElement('div');
   notice.id = 'transai-reconnect-notice';
   notice.style.cssText = `
@@ -263,7 +263,7 @@ function showReconnectionNotice() {
       <button id="transai-close-notice" style="background: none; border: none; color: #856404; cursor: pointer; padding: 0; font-size: 18px; line-height: 1;">&times;</button>
     </div>
   `;
-  
+
   // Add animation
   const style = document.createElement('style');
   style.textContent = `
@@ -273,23 +273,23 @@ function showReconnectionNotice() {
     }
   `;
   document.head.appendChild(style);
-  
+
   document.body.appendChild(notice);
-  
+
   const refreshBtn = document.getElementById('transai-refresh-btn');
   if (refreshBtn) {
     refreshBtn.addEventListener('click', () => {
       window.location.reload();
     });
   }
-  
+
   const closeBtn = document.getElementById('transai-close-notice');
   if (closeBtn) {
     closeBtn.addEventListener('click', () => {
       notice.remove();
     });
   }
-  
+
   // Auto-remove after 15 seconds
   setTimeout(() => {
     if (notice.parentNode) {
@@ -304,7 +304,7 @@ window.addEventListener('beforeunload', () => {
     textSelector.destroy();
     textSelector = null;
   }
-  
+
   if (overlayManager) {
     overlayManager.destroy();
     overlayManager = null;
@@ -317,7 +317,7 @@ const observer = new MutationObserver(() => {
   if (window.location.href !== currentUrl) {
     currentUrl = window.location.href;
     console.log('Page navigation detected, reinitializing...');
-    
+
     // Small delay to ensure page is ready
     setTimeout(() => {
       initializeContentScript();
@@ -340,4 +340,4 @@ if (document.readyState === 'loading') {
   initializeContentScript();
 }
 
-export {};
+export { };

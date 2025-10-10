@@ -495,7 +495,7 @@ export class VocabularyStore {
    * Generate unique ID for vocabulary items
    */
   private generateId(): string {
-    return `vocab_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    return `vocab_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
   }
 }
 

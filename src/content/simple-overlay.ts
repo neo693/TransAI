@@ -15,7 +15,6 @@ export class SimpleTranslationOverlay {
 
   show(selection: TextSelection): void {
     try {
-      console.log('[SimpleOverlay] Showing overlay for selection:', selection);
       this.hide(); // Hide any existing overlay
       this.currentSelection = selection;
       this.createOverlay(selection);
@@ -35,7 +34,6 @@ export class SimpleTranslationOverlay {
 
   hide(): void {
     if (this.overlayElement) {
-      console.log('[SimpleOverlay] Hiding overlay');
       try {
         if (document.body.contains(this.overlayElement)) {
           this.overlayElement.remove();
@@ -177,14 +175,13 @@ export class SimpleTranslationOverlay {
 
     // Append to body
     document.body.appendChild(this.overlayElement);
-    console.log('[SimpleOverlay] Overlay element appended to body');
+
 
     // Show with animation
     requestAnimationFrame(() => {
       if (this.overlayElement && document.body.contains(this.overlayElement)) {
         this.overlayElement.style.opacity = '1';
         this.overlayElement.style.transform = 'scale(1)';
-        console.log('[SimpleOverlay] Overlay animation triggered');
       } else {
         console.warn('[SimpleOverlay] Overlay element was removed before animation');
       }
@@ -193,7 +190,7 @@ export class SimpleTranslationOverlay {
 
   private async requestTranslation(selection: TextSelection): Promise<void> {
     try {
-      console.log('[SimpleOverlay] Requesting translation for:', selection.text);
+
 
       // Check if extension context is still valid
       if (!this.isExtensionContextValid()) {
@@ -210,7 +207,6 @@ export class SimpleTranslationOverlay {
       const now = Date.now();
       
       if (this.cachedConfig && (now - this.configCacheTime) < this.CONFIG_CACHE_DURATION) {
-        console.log('[SimpleOverlay] Using cached config');
         config = this.cachedConfig;
       } else {
         try {
@@ -250,12 +246,12 @@ export class SimpleTranslationOverlay {
         }
       };
 
-      console.log('[SimpleOverlay] Sending translation message:', translateMessage);
+
 
       const translatePromise = this.sendMessageWithRetry(translateMessage);
       const response = await Promise.race([translatePromise, timeoutPromise]) as any;
 
-      console.log('[SimpleOverlay] Translation response:', response);
+
 
       if (!response) {
         throw new Error('No response from translation service');
@@ -473,11 +469,6 @@ export class SimpleTranslationOverlay {
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       try {
         // Only log on first attempt or if debugging
-        if (attempt === 0) {
-          console.log(`[SimpleOverlay] Sending message:`, message.type);
-        } else {
-          console.log(`[SimpleOverlay] Retry attempt ${attempt}/${maxRetries}`);
-        }
 
         // Check if extension context is valid before sending
         if (!this.isExtensionContextValid()) {
@@ -496,9 +487,6 @@ export class SimpleTranslationOverlay {
           throw new Error(chrome.runtime.lastError.message);
         }
 
-        if (attempt > 0) {
-          console.log('[SimpleOverlay] Reconnection successful');
-        }
         
         return response;
 
