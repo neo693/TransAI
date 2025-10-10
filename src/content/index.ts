@@ -196,6 +196,108 @@ function setupMessageListener() {
   console.log('Message listener setup complete');
 }
 
+// Handle page visibility changes (e.g., after computer sleep)
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') {
+    console.log('[TransAI] Page became visible, checking extension connection...');
+    
+    // Silently test connection
+    testConnectionSilently();
+  }
+});
+
+// Silently test and restore connection without bothering user
+async function testConnectionSilently() {
+  try {
+    const response = await chrome.runtime.sendMessage({ 
+      type: 'PING', 
+      timestamp: Date.now() 
+    });
+    
+    if (response?.payload?.success) {
+      console.log('[TransAI] Extension connection verified');
+      return true;
+    }
+  } catch (error) {
+    // Connection failed, but don't show notice yet
+    console.warn('[TransAI] Connection test failed, will retry on next use');
+  }
+  
+  return false;
+}
+
+// Show reconnection notice only when user actually tries to use the extension
+function showReconnectionNotice() {
+  // Check if notice already exists
+  if (document.getElementById('transai-reconnect-notice')) {
+    return;
+  }
+  
+  const notice = document.createElement('div');
+  notice.id = 'transai-reconnect-notice';
+  notice.style.cssText = `
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: #fff3cd;
+    color: #856404;
+    padding: 12px 16px;
+    border-radius: 6px;
+    font-size: 13px;
+    z-index: 2147483647;
+    font-family: Arial, sans-serif;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    border-left: 4px solid #ffc107;
+    max-width: 300px;
+    animation: slideIn 0.3s ease-out;
+  `;
+  notice.innerHTML = `
+    <div style="display: flex; align-items: start; gap: 8px;">
+      <div style="flex: 1;">
+        <div style="font-weight: 600; margin-bottom: 4px;">TransAI needs reconnection</div>
+        <div style="font-size: 12px; margin-bottom: 8px;">Refresh to restore translation</div>
+        <button id="transai-refresh-btn" style="background: #ffc107; color: #000; border: none; padding: 4px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: 500;">
+          Refresh
+        </button>
+      </div>
+      <button id="transai-close-notice" style="background: none; border: none; color: #856404; cursor: pointer; padding: 0; font-size: 18px; line-height: 1;">&times;</button>
+    </div>
+  `;
+  
+  // Add animation
+  const style = document.createElement('style');
+  style.textContent = `
+    @keyframes slideIn {
+      from { transform: translateX(400px); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+  `;
+  document.head.appendChild(style);
+  
+  document.body.appendChild(notice);
+  
+  const refreshBtn = document.getElementById('transai-refresh-btn');
+  if (refreshBtn) {
+    refreshBtn.addEventListener('click', () => {
+      window.location.reload();
+    });
+  }
+  
+  const closeBtn = document.getElementById('transai-close-notice');
+  if (closeBtn) {
+    closeBtn.addEventListener('click', () => {
+      notice.remove();
+    });
+  }
+  
+  // Auto-remove after 15 seconds
+  setTimeout(() => {
+    if (notice.parentNode) {
+      notice.remove();
+    }
+  }, 15000);
+}
+
 // Cleanup on page unload
 window.addEventListener('beforeunload', () => {
   if (textSelector) {
@@ -227,6 +329,9 @@ observer.observe(document.body, {
   childList: true,
   subtree: true
 });
+
+// Expose reconnection notice function for overlay to use
+(window as any).showReconnectionNotice = showReconnectionNotice;
 
 // Initialize when DOM is ready
 if (document.readyState === 'loading') {

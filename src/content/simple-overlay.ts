@@ -4,6 +4,9 @@ import { MessageType, TextSelection, TranslationResult, UserConfig } from '../ty
 export class SimpleTranslationOverlay {
   private overlayElement: HTMLDivElement | null = null;
   private currentSelection: TextSelection | null = null;
+  private cachedConfig: UserConfig | null = null;
+  private configCacheTime: number = 0;
+  private readonly CONFIG_CACHE_DURATION = 60000; // Cache config for 1 minute
 
   constructor(
     private onAddToVocabulary?: (word: string, translation: string) => void,
@@ -192,25 +195,45 @@ export class SimpleTranslationOverlay {
     try {
       console.log('[SimpleOverlay] Requesting translation for:', selection.text);
 
+      // Check if extension context is still valid
+      if (!this.isExtensionContextValid()) {
+        throw new Error('Extension context invalidated. Please refresh the page.');
+      }
+
       // Add timeout to prevent hanging
       const timeoutPromise = new Promise((_, reject) => {
         setTimeout(() => reject(new Error('Translation request timeout')), 10000);
       });
 
-      // Get config to find default target language
-      const configPromise = chrome.runtime.sendMessage({
-        id: `get_config_${Date.now()}`,
-        type: MessageType.GET_CONFIG,
-        timestamp: Date.now()
-      });
+      // Get config (use cache if available and fresh)
+      let config: UserConfig | null = null;
+      const now = Date.now();
+      
+      if (this.cachedConfig && (now - this.configCacheTime) < this.CONFIG_CACHE_DURATION) {
+        console.log('[SimpleOverlay] Using cached config');
+        config = this.cachedConfig;
+      } else {
+        try {
+          const configPromise = this.sendMessageWithRetry({
+            id: `get_config_${Date.now()}`,
+            type: MessageType.GET_CONFIG,
+            timestamp: Date.now()
+          });
 
-      const configResponse = await Promise.race([configPromise, timeoutPromise]) as any;
+          const configResponse = await Promise.race([configPromise, timeoutPromise]) as any;
 
-      if (!configResponse || !configResponse.payload) {
-        throw new Error('Failed to get configuration');
+          if (configResponse?.payload?.data) {
+            config = configResponse.payload.data;
+            this.cachedConfig = config;
+            this.configCacheTime = now;
+          }
+        } catch (error) {
+          console.warn('[SimpleOverlay] Failed to fetch config, using defaults:', error);
+          // Use cached config as fallback even if expired
+          config = this.cachedConfig;
+        }
       }
 
-      const config: UserConfig = configResponse.payload.data;
       const targetLanguage = config?.defaultTargetLanguage || 'en';
 
       const translateMessage = {
@@ -229,7 +252,7 @@ export class SimpleTranslationOverlay {
 
       console.log('[SimpleOverlay] Sending translation message:', translateMessage);
 
-      const translatePromise = chrome.runtime.sendMessage(translateMessage);
+      const translatePromise = this.sendMessageWithRetry(translateMessage);
       const response = await Promise.race([translatePromise, timeoutPromise]) as any;
 
       console.log('[SimpleOverlay] Translation response:', response);
@@ -249,9 +272,22 @@ export class SimpleTranslationOverlay {
       }
     } catch (error) {
       console.error('[SimpleOverlay] Translation request failed:', error);
+      
       // Check if overlay still exists before showing error
       if (this.overlayElement) {
-        this.showError(error instanceof Error ? error.message : 'Translation failed');
+        const errorMsg = error instanceof Error ? error.message : 'Translation failed';
+        
+        // Handle extension disconnection specially
+        if (errorMsg === 'EXTENSION_DISCONNECTED' || errorMsg === 'CONTEXT_INVALIDATED') {
+          this.showError('Extension disconnected. Please refresh the page.');
+          
+          // Notify parent to show reconnection notice
+          if (typeof window !== 'undefined' && (window as any).showReconnectionNotice) {
+            (window as any).showReconnectionNotice();
+          }
+        } else {
+          this.showError(errorMsg);
+        }
       }
     }
   }
@@ -413,6 +449,87 @@ export class SimpleTranslationOverlay {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+  }
+
+  /**
+   * Check if extension context is still valid (not invalidated after sleep/update)
+   */
+  private isExtensionContextValid(): boolean {
+    try {
+      // Try to access chrome.runtime.id - if it throws, context is invalid
+      return !!chrome.runtime?.id;
+    } catch (error) {
+      console.error('[SimpleOverlay] Extension context is invalid:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Send message with retry logic for handling disconnected contexts
+   */
+  private async sendMessageWithRetry(message: any, maxRetries = 3): Promise<any> {
+    let lastError: Error | null = null;
+
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        // Only log on first attempt or if debugging
+        if (attempt === 0) {
+          console.log(`[SimpleOverlay] Sending message:`, message.type);
+        } else {
+          console.log(`[SimpleOverlay] Retry attempt ${attempt}/${maxRetries}`);
+        }
+
+        // Check if extension context is valid before sending
+        if (!this.isExtensionContextValid()) {
+          // Try to wake up the service worker by accessing chrome.runtime
+          await new Promise(resolve => setTimeout(resolve, 100));
+          
+          if (!this.isExtensionContextValid()) {
+            throw new Error('CONTEXT_INVALIDATED');
+          }
+        }
+
+        const response = await chrome.runtime.sendMessage(message);
+
+        // Check for chrome.runtime.lastError
+        if (chrome.runtime.lastError) {
+          throw new Error(chrome.runtime.lastError.message);
+        }
+
+        if (attempt > 0) {
+          console.log('[SimpleOverlay] Reconnection successful');
+        }
+        
+        return response;
+
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error(String(error));
+        
+        const errorMsg = lastError.message.toLowerCase();
+        const isContextError = errorMsg.includes('context') || 
+                              errorMsg.includes('port closed') ||
+                              errorMsg.includes('receiving end does not exist');
+
+        // Only log warnings on last attempt to reduce noise
+        if (attempt === maxRetries) {
+          console.warn(`[SimpleOverlay] All retry attempts failed:`, lastError.message);
+        }
+
+        // If it's a context error and we've tried enough times, give up
+        if (isContextError && attempt >= 2) {
+          throw new Error('EXTENSION_DISCONNECTED');
+        }
+
+        // Wait before retrying (exponential backoff: 200ms, 500ms, 1000ms, 2000ms)
+        if (attempt < maxRetries) {
+          const delay = Math.min(200 * Math.pow(2, attempt), 2000);
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
+      }
+    }
+
+    // All retries failed
+    throw lastError || new Error('Failed to send message after retries');
   }
 
   getCurrentSelection(): TextSelection | null {
