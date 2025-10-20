@@ -10,10 +10,6 @@
     "tts",
     "contextMenus"
   ],
-  "host_permissions": [
-    "https://*/*",
-    "http://*/*"
-  ],
   "background": {
     "service_worker": "background/index.js",
     "type": "module"
