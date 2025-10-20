@@ -1,16 +1,18 @@
 // Content script for TransAI extension
 import { TextSelector } from './text-selector';
 import { SimpleTranslationOverlay } from './simple-overlay';
-import { TextSelection } from '../types/index';
+import { TextSelection, MessageType } from '../types/index';
 
-console.log('TransAI content script loaded');
+
 
 let textSelector: TextSelector | null = null;
 let overlayManager: SimpleTranslationOverlay | null = null;
+let pendingSelection: TextSelection | null = null;
+let overlayTriggerMode: 'auto' | 'manual' = 'auto';
 
 // Initialize content script
 function initializeContentScript() {
-  console.log('Initializing TransAI content script on:', window.location.href);
+
 
   // Add visual indicator that content script is loaded
   // const indicator = document.createElement('div');
@@ -42,7 +44,7 @@ function initializeContentScript() {
     // Test communication with background script
     const pingMessage = {
       id: `ping_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`,
-      type: 'PING',
+      type: MessageType.PING,
       timestamp: Date.now()
     };
 
@@ -53,13 +55,22 @@ function initializeContentScript() {
       }
 
       if (response?.payload?.success) {
-        console.log('Content script connected to background service worker');
+        // console.log('Content script connected to background service worker');
 
         try {
-          // Initialize text selection and overlay handling
-          initializeTextSelection();
-          initializeOverlayManager();
-          setupMessageListener();
+          // Load configuration first
+          loadConfiguration().then(() => {
+            // Initialize text selection and overlay handling
+            initializeTextSelection();
+            initializeOverlayManager();
+            setupMessageListener();
+          }).catch((error) => {
+            console.error('Failed to load configuration:', error);
+            // Initialize with defaults anyway
+            initializeTextSelection();
+            initializeOverlayManager();
+            setupMessageListener();
+          });
         } catch (error) {
           console.error('Failed to initialize content script components:', error);
         }
@@ -69,6 +80,23 @@ function initializeContentScript() {
     });
   } catch (error) {
     console.error('Failed to initialize content script:', error);
+  }
+}
+
+// Load configuration from background
+async function loadConfiguration() {
+  try {
+    const response = await chrome.runtime.sendMessage({
+      id: `get_config_${Date.now()}`,
+      type: MessageType.GET_CONFIG,
+      timestamp: Date.now()
+    });
+
+    if (response?.payload?.data?.uiPreferences?.overlayTriggerMode) {
+      overlayTriggerMode = response.payload.data.uiPreferences.overlayTriggerMode;
+    }
+  } catch (error) {
+    console.warn('Failed to load configuration, using defaults:', error);
   }
 }
 
@@ -98,7 +126,7 @@ function initializeTextSelection() {
   }
 
   textSelector = new TextSelector(handleSelectionChange);
-  console.log('Text selection handler initialized');
+  // console.log('Text selection handler initialized');
 }
 
 // Initialize overlay manager
@@ -108,14 +136,47 @@ function initializeOverlayManager() {
   }
 
   overlayManager = new SimpleTranslationOverlay(handleAddToVocabulary, handleOverlayClose);
-  console.log('Translation overlay manager initialized');
+  // console.log('Translation overlay manager initialized');
 }
 
 // Handle overlay manual close
 function handleOverlayClose() { }
 
 // Handle text selection changes
-function handleSelectionChange(_selection: TextSelection | null) { }
+function handleSelectionChange(selection: TextSelection | null) {
+  if (!selection) {
+    // In manual mode, keep the pending selection for a short time
+    // to allow right-click menu to work
+    if (overlayTriggerMode === 'manual' && pendingSelection) {
+      // Clear after a delay to allow context menu to work
+      setTimeout(() => {
+        // Only clear if no overlay is showing
+        if (!overlayManager?.isVisible()) {
+          pendingSelection = null;
+        }
+      }, 1000);
+      return;
+    }
+    
+    // Hide overlay when selection is cleared in auto mode
+    if (overlayManager) {
+      overlayManager.hide();
+    }
+    pendingSelection = null;
+    return;
+  }
+
+  // Store the selection for potential manual trigger
+  pendingSelection = selection;
+
+  // Check trigger mode
+  if (overlayTriggerMode === 'auto') {
+    // Auto mode: show overlay immediately
+    if (overlayManager) {
+      overlayManager.show(selection);
+    }
+  }
+}
 
 // Handle adding words to vocabulary
 function handleAddToVocabulary(word: string, translation: string) {
@@ -124,7 +185,7 @@ function handleAddToVocabulary(word: string, translation: string) {
   // Send message to background script to add to vocabulary
   const addMessage = {
     id: `add_vocab_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`,
-    type: 'ADD_TO_VOCABULARY',
+    type: MessageType.ADD_TO_VOCABULARY,
     timestamp: Date.now(),
     payload: {
       word,
@@ -135,7 +196,7 @@ function handleAddToVocabulary(word: string, translation: string) {
   };
 
   chrome.runtime.sendMessage(addMessage).then((response) => {
-    if (response?.type === 'SUCCESS') {
+    if (response?.type === MessageType.SUCCESS) {
       console.log('Word added to vocabulary successfully');
       // TODO: Show success feedback (will be implemented in next subtask)
     } else {
@@ -150,36 +211,62 @@ function handleAddToVocabulary(word: string, translation: string) {
 // Setup message listener for background script messages
 function setupMessageListener() {
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-    console.log('Content script received message:', message);
-
-    if (message.type === 'SHOW_TRANSLATION_OVERLAY') {
-      console.log('Received SHOW_TRANSLATION_OVERLAY message:', message);
-
+    if (message.type === MessageType.SHOW_TRANSLATION_OVERLAY) {
       if (!overlayManager) {
         console.error('Overlay manager not initialized');
         sendResponse({ success: false, error: 'Overlay manager not initialized' });
         return true;
       }
 
-      if (!message.payload?.text) {
-        console.error('No text in message payload');
-        sendResponse({ success: false, error: 'No text provided' });
-        return true;
-      }
-
       try {
-        // Create a TextSelection object from the message payload
-        const selection: TextSelection = {
-          text: message.payload.text,
-          position: {
+        let selection: TextSelection;
+
+        // Normalize text for comparison (trim and normalize whitespace)
+        const normalizeText = (text: string) => text.trim().replace(/\s+/g, ' ');
+        const messageText = message.payload?.text ? normalizeText(message.payload.text) : '';
+        const pendingText = pendingSelection ? normalizeText(pendingSelection.text) : '';
+
+        // Use pending selection if available and text matches (after normalization)
+        if (pendingSelection && messageText === pendingText) {
+          selection = pendingSelection;
+        } else if (pendingSelection && messageText && pendingText.includes(messageText)) {
+          // If message text is a substring of pending selection, use pending selection
+          selection = pendingSelection;
+        } else if (pendingSelection && pendingText && messageText.includes(pendingText)) {
+          // If pending text is a substring of message text, use pending selection
+          selection = pendingSelection;
+        } else if (message.payload?.text) {
+          // Try to get current browser selection to get accurate position
+          const browserSelection = window.getSelection();
+          let position = {
             x: window.innerWidth / 2,
             y: window.innerHeight / 2
-          },
-          context: '',
-          url: window.location.href
-        };
+          };
 
-        console.log('Showing overlay with selection:', selection);
+          if (browserSelection && browserSelection.rangeCount > 0) {
+            const range = browserSelection.getRangeAt(0);
+            const rect = range.getBoundingClientRect();
+            if (rect.width > 0 && rect.height > 0) {
+              position = {
+                x: rect.left + rect.width / 2,
+                y: rect.top
+              };
+            }
+          }
+
+          // Create a TextSelection object from the message payload
+          selection = {
+            text: message.payload.text,
+            position,
+            context: '',
+            url: window.location.href
+          };
+        } else {
+          console.error('No text available for translation');
+          sendResponse({ success: false, error: 'No text provided' });
+          return true;
+        }
+
         overlayManager.show(selection);
         sendResponse({ success: true });
       } catch (error) {
@@ -192,8 +279,6 @@ function setupMessageListener() {
 
     return false;
   });
-
-  console.log('Message listener setup complete');
 }
 
 // Handle page visibility changes (e.g., after computer sleep)
@@ -210,7 +295,7 @@ document.addEventListener('visibilitychange', () => {
 async function testConnectionSilently() {
   try {
     const response = await chrome.runtime.sendMessage({
-      type: 'PING',
+      type: MessageType.PING,
       timestamp: Date.now()
     });
 

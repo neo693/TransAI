@@ -17,7 +17,8 @@ import {
   ExportFormat,
   ContentType,
   Theme,
-  OverlayPosition
+  OverlayPosition,
+  OverlayTriggerMode
 } from '../types';
 
 // Utility function to check if a value is a valid date
@@ -64,6 +65,11 @@ export function isValidTheme(value: any): value is Theme {
 // Validate Overlay Position
 export function isValidOverlayPosition(value: any): value is OverlayPosition {
   return typeof value === 'string' && ['auto', 'top', 'bottom'].includes(value);
+}
+
+// Validate Overlay Trigger Mode
+export function isValidOverlayTriggerMode(value: any): value is OverlayTriggerMode {
+  return typeof value === 'string' && ['auto', 'manual'].includes(value);
 }
 
 // Validate Example interface
@@ -117,6 +123,7 @@ export function validateUIPreferences(prefs: any): prefs is UIPreferences {
   return (
     isValidTheme(prefs.theme) &&
     isValidOverlayPosition(prefs.overlayPosition) &&
+    isValidOverlayTriggerMode(prefs.overlayTriggerMode) &&
     typeof prefs.autoPlayPronunciation === 'boolean'
   );
 }

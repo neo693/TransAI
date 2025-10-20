@@ -18,6 +18,9 @@ export type Theme = 'light' | 'dark' | 'auto';
 // Overlay position options
 export type OverlayPosition = 'auto' | 'top' | 'bottom';
 
+// Overlay trigger mode options
+export type OverlayTriggerMode = 'auto' | 'manual';
+
 // Translation confidence levels
 export enum ConfidenceLevel {
   LOW = 0.3,
@@ -62,6 +65,7 @@ export interface VocabularyItem {
 export interface UIPreferences {
   theme: Theme;
   overlayPosition: OverlayPosition;
+  overlayTriggerMode: OverlayTriggerMode;
   autoPlayPronunciation: boolean;
 }
 

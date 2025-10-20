@@ -205,7 +205,7 @@ export class SimpleTranslationOverlay {
       // Get config (use cache if available and fresh)
       let config: UserConfig | null = null;
       const now = Date.now();
-      
+
       if (this.cachedConfig && (now - this.configCacheTime) < this.CONFIG_CACHE_DURATION) {
         config = this.cachedConfig;
       } else {
@@ -268,15 +268,15 @@ export class SimpleTranslationOverlay {
       }
     } catch (error) {
       console.error('[SimpleOverlay] Translation request failed:', error);
-      
+
       // Check if overlay still exists before showing error
       if (this.overlayElement) {
         const errorMsg = error instanceof Error ? error.message : 'Translation failed';
-        
+
         // Handle extension disconnection specially
         if (errorMsg === 'EXTENSION_DISCONNECTED' || errorMsg === 'CONTEXT_INVALIDATED') {
           this.showError('Extension disconnected. Please refresh the page.');
-          
+
           // Notify parent to show reconnection notice
           if (typeof window !== 'undefined' && (window as any).showReconnectionNotice) {
             (window as any).showReconnectionNotice();
@@ -474,7 +474,7 @@ export class SimpleTranslationOverlay {
         if (!this.isExtensionContextValid()) {
           // Try to wake up the service worker by accessing chrome.runtime
           await new Promise(resolve => setTimeout(resolve, 100));
-          
+
           if (!this.isExtensionContextValid()) {
             throw new Error('CONTEXT_INVALIDATED');
           }
@@ -487,16 +487,16 @@ export class SimpleTranslationOverlay {
           throw new Error(chrome.runtime.lastError.message);
         }
 
-        
+
         return response;
 
       } catch (error) {
         lastError = error instanceof Error ? error : new Error(String(error));
-        
+
         const errorMsg = lastError.message.toLowerCase();
-        const isContextError = errorMsg.includes('context') || 
-                              errorMsg.includes('port closed') ||
-                              errorMsg.includes('receiving end does not exist');
+        const isContextError = errorMsg.includes('context') ||
+          errorMsg.includes('port closed') ||
+          errorMsg.includes('receiving end does not exist');
 
         // Only log warnings on last attempt to reduce noise
         if (attempt === maxRetries) {

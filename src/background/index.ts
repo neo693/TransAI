@@ -5,24 +5,37 @@ import { BackgroundService } from './background-service';
 // Initialize background service
 const backgroundService = new BackgroundService();
 
-// Initialize extension
-chrome.runtime.onInstalled.addListener(async () => {
-  console.log('TransAI extension installed');
-  await backgroundService.initialize();
+// Initialize immediately when service worker loads
+(async () => {
+  try {
+    await backgroundService.initialize();
+  } catch (error) {
+    console.error('Failed to initialize background service:', error);
+  }
+})();
+
+// Initialize extension on install
+chrome.runtime.onInstalled.addListener(async (details) => {
+  console.log('TransAI extension installed/updated:', details.reason);
+  try {
+    await backgroundService.initialize();
+  } catch (error) {
+    console.error('Failed to initialize on install:', error);
+  }
 });
 
 // Initialize on startup
 chrome.runtime.onStartup.addListener(async () => {
-  console.log('TransAI extension startup');
-  await backgroundService.initialize();
+  try {
+    await backgroundService.initialize();
+  } catch (error) {
+    console.error('Failed to initialize on startup:', error);
+  }
 });
 
 // Handle extension suspension
 chrome.runtime.onSuspend.addListener(() => {
-  console.log('TransAI extension suspending');
   backgroundService.cleanup();
 });
-
-console.log('TransAI background service worker loaded');
 
 export {};

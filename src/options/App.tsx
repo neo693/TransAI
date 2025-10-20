@@ -7,6 +7,7 @@ import type {
   LanguageCode, 
   Theme, 
   OverlayPosition,
+  OverlayTriggerMode,
   VocabularyItem,
   ExportFormat 
 } from '../types/index.js';
@@ -109,6 +110,11 @@ const OVERLAY_POSITIONS: { value: OverlayPosition; name: string }[] = [
   { value: 'auto', name: 'Auto' },
   { value: 'top', name: 'Top' },
   { value: 'bottom', name: 'Bottom' }
+];
+
+const OVERLAY_TRIGGER_MODES: { value: OverlayTriggerMode; name: string; description: string }[] = [
+  { value: 'auto', name: 'Auto', description: 'Show overlay immediately after text selection' },
+  { value: 'manual', name: 'Manual', description: 'Show overlay only when right-clicking "TransAI" menu' }
 ];
 
 // Model options for different providers
@@ -711,6 +717,32 @@ function App() {
                         label: position.name
                       }))}
                     />
+                  </div>
+
+                  {/* Overlay Trigger Mode */}
+                  <div className="mb-6">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Translation Overlay Trigger
+                    </label>
+                    <CustomSelect
+                      value={config.uiPreferences.overlayTriggerMode}
+                      onChange={(value) => handleConfigChange({
+                        uiPreferences: {
+                          ...config.uiPreferences,
+                          overlayTriggerMode: value as OverlayTriggerMode
+                        }
+                      })}
+                      options={OVERLAY_TRIGGER_MODES.map(mode => ({
+                        value: mode.value,
+                        label: mode.name,
+                        description: mode.description
+                      }))}
+                    />
+                    <p className="mt-2 text-sm text-gray-500">
+                      {config.uiPreferences.overlayTriggerMode === 'auto' 
+                        ? '💡 Overlay appears immediately when you select text'
+                        : '💡 Overlay appears only when you right-click and select "TransAI"'}
+                    </p>
                   </div>
 
                   {/* Auto-play Pronunciation */}

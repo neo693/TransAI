@@ -56,6 +56,7 @@ const DEFAULT_CONFIG: UserConfig = {
   uiPreferences: {
     theme: 'auto',
     overlayPosition: 'auto',
+    overlayTriggerMode: 'auto',
     autoPlayPronunciation: false
   }
 };

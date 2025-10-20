@@ -208,7 +208,7 @@ export class TranslationService {
    * Create a debounced translate function that supports promises
    */
   private createDebouncedTranslate(): (text: string, options: TranslationOptions) => Promise<TranslationResult> {
-    let timeoutId: NodeJS.Timeout | null = null;
+    let timeoutId: number | null = null;
     let resolvePromise: ((result: TranslationResult) => void) | null = null;
     let rejectPromise: ((error: Error) => void) | null = null;
 

@@ -56,10 +56,12 @@ export class BackgroundService {
   private llmClient: any = null;
   private isInitialized = false;
   private config: UserConfig | null = null;
+  private contextMenuClickHandler: ((info: chrome.contextMenus.OnClickData, tab?: chrome.tabs.Tab) => void) | null = null;
 
   constructor() {
     this.setupMessageHandlers();
     this.setupStorageListener();
+    this.setupContextMenuClickHandler();
   }
 
   /**
@@ -245,6 +247,50 @@ export class BackgroundService {
   }
 
   /**
+   * Setup context menu click handler (only once)
+   */
+  private setupContextMenuClickHandler(): void {
+    if (this.contextMenuClickHandler) {
+      return; // Already set up
+    }
+
+    this.contextMenuClickHandler = (info, tab) => {
+      if (info.menuItemId === 'transai-translate' && tab?.id && info.selectionText) {
+        const message = {
+          id: `show_translation_${Date.now()}`,
+          type: MessageType.SHOW_TRANSLATION_OVERLAY,
+          timestamp: Date.now(),
+          payload: {
+            text: info.selectionText
+          }
+        };
+        
+        // Send message to content script
+        chrome.tabs.sendMessage(tab.id, message)
+          .catch((error) => {
+            console.warn('Could not send message to content script:', error.message);
+            // Try to inject content script if it's not loaded
+            chrome.scripting.executeScript({
+              target: { tabId: tab.id! },
+              files: ['content/index.js']
+            }).then(() => {
+              // Retry sending message after a short delay
+              setTimeout(() => {
+                chrome.tabs.sendMessage(tab.id!, message).catch((retryError) => {
+                  console.error('Failed to send message after injecting content script:', retryError);
+                });
+              }, 500);
+            }).catch((injectError) => {
+              console.error('Failed to inject content script:', injectError);
+            });
+          });
+      }
+    };
+
+    chrome.contextMenus.onClicked.addListener(this.contextMenuClickHandler);
+  }
+
+  /**
    * Setup context menu for text selection
    */
   private setupContextMenu(): void {
@@ -259,39 +305,8 @@ export class BackgroundService {
         }, () => {
           if (chrome.runtime.lastError) {
             console.error('Failed to create context menu:', chrome.runtime.lastError);
-          } else {
-            console.log('Context menu created successfully');
           }
         });
-      });
-
-      // Setup click listener
-      chrome.contextMenus.onClicked.addListener((info, tab) => {
-        console.log('Context menu clicked:', { menuItemId: info.menuItemId, tabId: tab?.id, selectionText: info.selectionText });
-        
-        if (info.menuItemId === 'transai-translate' && tab?.id && info.selectionText) {
-          const message = {
-            id: `show_translation_${Date.now()}`,
-            type: MessageType.SHOW_TRANSLATION_OVERLAY,
-            timestamp: Date.now(),
-            payload: {
-              text: info.selectionText
-            }
-          };
-          
-          console.log('Sending message to content script:', message);
-          
-          // Use Promise-based API to handle errors properly
-          chrome.tabs.sendMessage(tab.id, message)
-            .then((response) => {
-              console.log('Message sent successfully, response:', response);
-            })
-            .catch((error) => {
-              // This is expected if content script is not loaded on the page
-              console.warn('Could not send message to content script:', error.message || error);
-              // Optionally, you could inject the content script here if needed
-            });
-        }
       });
     } catch (error) {
       console.error('Error setting up context menu:', error);

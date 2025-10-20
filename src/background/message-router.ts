@@ -33,7 +33,7 @@ export class MessageRouter {
   private pendingMessages = new Map<string, {
     resolve: (value: ResponseMessage) => void;
     reject: (error: Error) => void;
-    timeout: NodeJS.Timeout;
+    timeout: number;
   }>();
 
   constructor(config: MessageRouterConfig = {}) {
@@ -310,5 +310,5 @@ export class MessageRouter {
 
 // Singleton instance for background service worker
 export const messageRouter = new MessageRouter({
-  enableLogging: process.env.NODE_ENV === 'development'
+  enableLogging: false // Set to true for debugging
 });

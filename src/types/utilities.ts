@@ -53,6 +53,7 @@ export const DEFAULT_CONFIG: Required<UserConfig> = {
   uiPreferences: {
     theme: 'auto',
     overlayPosition: 'auto',
+    overlayTriggerMode: 'auto',
     autoPlayPronunciation: false
   }
 };
