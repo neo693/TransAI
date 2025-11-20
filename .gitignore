@@ -36,3 +36,5 @@ web-ext-artifacts/
 
 # Testing
 coverage/
+
+.kiro
