@@ -1,5 +1,5 @@
 // Simple translation overlay without React
-import { MessageType, TextSelection, TranslationResult, UserConfig } from '../types/index';
+import { MessageType, TextSelection, TranslationResult, UserConfig, LanguageCode } from '../types/index';
 
 export class SimpleTranslationOverlay {
   private overlayElement: HTMLDivElement | null = null;
@@ -7,9 +7,17 @@ export class SimpleTranslationOverlay {
   private cachedConfig: UserConfig | null = null;
   private configCacheTime: number = 0;
   private readonly CONFIG_CACHE_DURATION = 60000; // Cache config for 1 minute
+  private handleClickOutside: ((event: MouseEvent) => void) | null = null;
+  private handleEscape: ((event: KeyboardEvent) => void) | null = null;
+  private outsideClickTimer: number | null = null;
 
   constructor(
-    private onAddToVocabulary?: (word: string, translation: string) => void,
+    private onAddToVocabulary?: (
+      word: string,
+      translation: string,
+      sourceLanguage: LanguageCode,
+      targetLanguage: LanguageCode
+    ) => void,
     private onClose?: () => void
   ) { }
 
@@ -33,6 +41,8 @@ export class SimpleTranslationOverlay {
   }
 
   hide(): void {
+    this.removeOverlayListeners();
+
     if (this.overlayElement) {
       try {
         if (document.body.contains(this.overlayElement)) {
@@ -153,25 +163,25 @@ export class SimpleTranslationOverlay {
     }
 
     // Handle clicks outside overlay
-    const handleClickOutside = (event: MouseEvent) => {
+    this.handleClickOutside = (event: MouseEvent) => {
       if (this.overlayElement && !this.overlayElement.contains(event.target as Node)) {
         this.hide();
-        document.removeEventListener('mousedown', handleClickOutside);
       }
     };
     // Use setTimeout to avoid immediate closing if the click that triggered the overlay is still propagating
-    setTimeout(() => {
-      document.addEventListener('mousedown', handleClickOutside);
+    this.outsideClickTimer = window.setTimeout(() => {
+      if (this.handleClickOutside) {
+        document.addEventListener('mousedown', this.handleClickOutside);
+      }
     }, 100);
 
     // Handle escape key
-    const handleEscape = (event: KeyboardEvent) => {
+    this.handleEscape = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         this.hide();
-        document.removeEventListener('keydown', handleEscape);
       }
     };
-    document.addEventListener('keydown', handleEscape);
+    document.addEventListener('keydown', this.handleEscape);
 
     // Append to body
     document.body.appendChild(this.overlayElement);
@@ -186,6 +196,23 @@ export class SimpleTranslationOverlay {
         console.warn('[SimpleOverlay] Overlay element was removed before animation');
       }
     });
+  }
+
+  private removeOverlayListeners(): void {
+    if (this.outsideClickTimer !== null) {
+      clearTimeout(this.outsideClickTimer);
+      this.outsideClickTimer = null;
+    }
+
+    if (this.handleClickOutside) {
+      document.removeEventListener('mousedown', this.handleClickOutside);
+      this.handleClickOutside = null;
+    }
+
+    if (this.handleEscape) {
+      document.removeEventListener('keydown', this.handleEscape);
+      this.handleEscape = null;
+    }
   }
 
   private async requestTranslation(selection: TextSelection): Promise<void> {
@@ -346,7 +373,12 @@ export class SimpleTranslationOverlay {
     if (addVocabBtn && this.onAddToVocabulary && this.currentSelection) {
       addVocabBtn.addEventListener('click', () => {
         if (this.onAddToVocabulary && this.currentSelection) {
-          this.onAddToVocabulary(this.currentSelection.text, result.translatedText);
+          this.onAddToVocabulary(
+            this.currentSelection.text,
+            result.translatedText,
+            result.sourceLanguage,
+            result.targetLanguage
+          );
           this.hide();
         }
       });

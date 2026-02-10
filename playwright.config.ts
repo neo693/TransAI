@@ -39,8 +39,8 @@ export default defineConfig({
         // Load extension in Chrome
         launchOptions: {
           args: [
-            '--disable-extensions-except=./dist/chrome',
-            '--load-extension=./dist/chrome',
+            '--disable-extensions-except=./dist',
+            '--load-extension=./dist',
           ],
         },
       },
@@ -53,8 +53,8 @@ export default defineConfig({
         // Test the extension specifically
         launchOptions: {
           args: [
-            '--disable-extensions-except=./dist/chrome',
-            '--load-extension=./dist/chrome',
+            '--disable-extensions-except=./dist',
+            '--load-extension=./dist',
             '--disable-web-security',
             '--disable-features=VizDisplayCompositor',
           ],

@@ -161,7 +161,7 @@ const VocabularyStats: React.FC<VocabularyStatsProps> = ({
 };
 
 // Vocabulary Filter Component
-const VocabularyFilter: React.FC<VocabularyFilterProps> = ({ onFilterChange, currentFilter }) => {
+const VocabularyFilterPanel: React.FC<VocabularyFilterProps> = ({ onFilterChange, currentFilter }) => {
   const [showAdvanced, setShowAdvanced] = useState(false);
 
   const handleReviewCountChange = (value: string) => {
@@ -1745,7 +1745,7 @@ function App() {
                 placeholder="Search vocabulary..."
               />
 
-              <VocabularyFilter
+              <VocabularyFilterPanel
                 onFilterChange={handleFilterChange}
                 currentFilter={vocabularyFilter}
               />

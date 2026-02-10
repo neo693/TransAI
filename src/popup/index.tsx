@@ -19,7 +19,11 @@ async function ensureContentScriptInjected() {
 
     // Try to ping content script to check if it's already loaded
     try {
-      await chrome.tabs.sendMessage(tab.id, { type: 'PING' });
+      await chrome.tabs.sendMessage(tab.id, {
+        id: `popup_ping_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`,
+        type: 'PING',
+        timestamp: Date.now()
+      });
       console.log('Content script already loaded');
     } catch (error) {
       // Content script not loaded, inject it

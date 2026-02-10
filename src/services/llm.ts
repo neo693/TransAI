@@ -314,7 +314,7 @@ export class LLMClient implements ILLMClient {
           }
         };
 
-      case 'custom':
+      case 'custom': {
         const customConfig = this.config as CustomConfig;
         return {
           url: customConfig.baseUrl!,
@@ -330,6 +330,7 @@ export class LLMClient implements ILLMClient {
             model: this.config.model
           }
         };
+      }
 
       default:
         throw new LLMError(
@@ -418,13 +419,14 @@ export class LLMClient implements ILLMClient {
           model: data.output.choices[0].message.model || this.config.model
         };
 
-      case 'custom':
+      case 'custom': {
         // Assume custom provider returns content directly or in a content field
         const content = data.content || data.text || data.response || JSON.stringify(data);
         return {
           content: typeof content === 'string' ? content : JSON.stringify(content),
           model: data.model
         };
+      }
 
       default:
         throw new LLMError(

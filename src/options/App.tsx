@@ -336,7 +336,7 @@ function App() {
           mimeType = 'application/json';
           break;
           
-        case 'csv':
+        case 'csv': {
           const headers = ['Word', 'Translation', 'Context', 'Source URL', 'Date Added', 'Review Count'];
           const rows = vocabulary.map(item => [
             item.word,
@@ -352,6 +352,7 @@ function App() {
           filename = `transai-vocabulary-${new Date().toISOString().split('T')[0]}.csv`;
           mimeType = 'text/csv';
           break;
+        }
           
         case 'txt':
           content = vocabulary.map(item => 

@@ -209,27 +209,38 @@ export class TranslationService {
    */
   private createDebouncedTranslate(): (text: string, options: TranslationOptions) => Promise<TranslationResult> {
     let timeoutId: number | null = null;
-    let resolvePromise: ((result: TranslationResult) => void) | null = null;
-    let rejectPromise: ((error: Error) => void) | null = null;
+    let pendingRequest: {
+      text: string;
+      options: TranslationOptions;
+      resolve: (result: TranslationResult) => void;
+      reject: (error: Error) => void;
+    } | null = null;
 
     return (text: string, options: TranslationOptions): Promise<TranslationResult> => {
       return new Promise((resolve, reject) => {
         if (timeoutId) {
           clearTimeout(timeoutId);
+          timeoutId = null;
         }
 
-        resolvePromise = resolve;
-        rejectPromise = reject;
+        if (pendingRequest) {
+          pendingRequest.reject(new Error('Translation request superseded by newer input'));
+        }
+
+        pendingRequest = { text, options, resolve, reject };
 
         timeoutId = setTimeout(async () => {
+          const currentRequest = pendingRequest;
+          pendingRequest = null;
+          timeoutId = null;
+
+          if (!currentRequest) return;
+
           try {
-            const result = await this.translateInternal(text, options);
-            resolvePromise?.(result);
+            const result = await this.translateInternal(currentRequest.text, currentRequest.options);
+            currentRequest.resolve(result);
           } catch (error) {
-            rejectPromise?.(error instanceof Error ? error : new Error(String(error)));
-          } finally {
-            resolvePromise = null;
-            rejectPromise = null;
+            currentRequest.reject(error instanceof Error ? error : new Error(String(error)));
           }
         }, 300);
       });
@@ -472,13 +483,13 @@ export class TranslationService {
 
     // Handle context
     if (prompt.includes('{context}')) {
-      const context = this.extractContext();
+      const context = this.extractContext(options.context);
       prompt = prompt.replace(/{context}/g, context);
     }
 
     // Handle contextSection for detailed prompt
     if (prompt.includes('{contextSection}')) {
-      const context = this.extractContext();
+      const context = this.extractContext(options.context);
       const contextSection = context ? `Context: "${context}"` : '';
       prompt = prompt.replace(/{contextSection}/g, contextSection);
     }
@@ -518,10 +529,8 @@ export class TranslationService {
     }
   }
 
-  private extractContext(): string {
-    // For now, return empty context. In a real implementation,
-    // this could extract context from the surrounding page content
-    return '';
+  private extractContext(context?: string): string {
+    return context?.trim() || '';
   }
 
   private async parseTranslationResponse(

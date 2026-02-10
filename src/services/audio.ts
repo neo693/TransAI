@@ -69,7 +69,11 @@ const LANGUAGE_VOICE_MAP: Record<LanguageCode, string[]> = {
  * Text-to-Speech Service using Web Speech API
  */
 export class TTSService {
-  private synthesis: SpeechSynthesis | null = null;
+  private synthesis: {
+    getVoices: () => Array<{ lang: string }>;
+    cancel: () => void;
+    speak: (utterance: SpeechSynthesisUtterance) => void;
+  } | null = null;
   private audioCache = new Map<string, AudioCacheEntry>();
   private phoneticCache = new Map<string, string>();
   private readonly maxCacheSize = 100;
@@ -104,7 +108,7 @@ export class TTSService {
   /**
    * Get available voices for a specific language
    */
-  private getVoicesForLanguage(language: LanguageCode): SpeechSynthesisVoice[] {
+  private getVoicesForLanguage(language: LanguageCode): Array<{ lang: string }> {
     if (!this.synthesis) return [];
 
     const voices = this.synthesis.getVoices();
@@ -182,7 +186,6 @@ export class TTSService {
       // Set language and voice
       const voices = this.getVoicesForLanguage(language);
       if (voices.length > 0) {
-        utterance.voice = voices[0];
         utterance.lang = voices[0].lang;
       } else {
         utterance.lang = LANGUAGE_VOICE_MAP[language]?.[0] || 'en-US';

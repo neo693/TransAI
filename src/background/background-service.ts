@@ -407,9 +407,6 @@ export class BackgroundService {
         message.payload.targetLanguage
       );
 
-      // Update statistics
-      await this.incrementWordsLearned();
-
       return messageRouter.createSuccessResponse(message.id, result);
 
     } catch (error) {
@@ -733,23 +730,6 @@ export class BackgroundService {
       }
     } catch (error) {
       console.warn('Failed to update translation count:', error);
-    }
-  }
-
-  /**
-   * Increment words learned count in statistics
-   */
-  private async incrementWordsLearned(): Promise<void> {
-    try {
-      const stats = await storageManager.getStatistics();
-      if (stats) {
-        await storageManager.updateStatistics({
-          wordsLearned: stats.wordsLearned + 1,
-          lastUsed: new Date()
-        });
-      }
-    } catch (error) {
-      console.warn('Failed to update words learned count:', error);
     }
   }
 

@@ -30,11 +30,6 @@ export class MessageRouterError extends Error {
 export class MessageRouter {
   private handlers = new Map<MessageType, MessageHandler>();
   private config: Required<MessageRouterConfig>;
-  private pendingMessages = new Map<string, {
-    resolve: (value: ResponseMessage) => void;
-    reject: (error: Error) => void;
-    timeout: number;
-  }>();
 
   constructor(config: MessageRouterConfig = {}) {
     this.config = {
@@ -86,35 +81,49 @@ export class MessageRouter {
     message: RequestMessage,
     tabId?: number
   ): Promise<ResponseMessage> {
-    return new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        this.pendingMessages.delete(message.id);
-        reject(new MessageRouterError(
-          `Message timeout after ${this.config.timeout}ms`,
-          'MESSAGE_TIMEOUT',
-          { messageId: message.id, messageType: message.type }
-        ));
-      }, this.config.timeout);
+    let timeoutId: number | null = null;
 
-      this.pendingMessages.set(message.id, {
-        resolve,
-        reject,
-        timeout
+    try {
+      const sendPromise = typeof tabId === 'number'
+        ? chrome.tabs.sendMessage(tabId, message)
+        : chrome.runtime.sendMessage(message);
+
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        timeoutId = setTimeout(() => {
+          reject(new MessageRouterError(
+            `Message timeout after ${this.config.timeout}ms`,
+            'MESSAGE_TIMEOUT',
+            { messageId: message.id, messageType: message.type }
+          ));
+        }, this.config.timeout);
       });
 
-      // Send message to specific tab or broadcast
-      if (tabId) {
-        chrome.tabs.sendMessage(tabId, message).catch((error) => {
-          this.handleSendError(message.id, error);
-        });
-      } else {
-        chrome.runtime.sendMessage(message).catch((error) => {
-          this.handleSendError(message.id, error);
-        });
+      const response = await Promise.race([sendPromise, timeoutPromise]) as ResponseMessage;
+
+      if (!response || typeof response !== 'object' || typeof (response as any).type !== 'string') {
+        throw new MessageRouterError(
+          'Invalid response format',
+          'INVALID_RESPONSE',
+          { messageId: message.id, response }
+        );
       }
 
       this.log(`Sent message: ${message.type}`, message);
-    });
+      return response;
+    } catch (error) {
+      if (error instanceof MessageRouterError) {
+        throw error;
+      }
+      throw new MessageRouterError(
+        'Failed to send message',
+        'SEND_ERROR',
+        error
+      );
+    } finally {
+      if (timeoutId !== null) {
+        clearTimeout(timeoutId);
+      }
+    }
   }
 
   /**
@@ -181,22 +190,6 @@ export class MessageRouter {
     );
 
     this.log('Message listener setup complete');
-  }
-
-  /**
-   * Handle message send errors
-   */
-  private handleSendError(messageId: string, error: any): void {
-    const pending = this.pendingMessages.get(messageId);
-    if (pending) {
-      clearTimeout(pending.timeout);
-      this.pendingMessages.delete(messageId);
-      pending.reject(new MessageRouterError(
-        'Failed to send message',
-        'SEND_ERROR',
-        error
-      ));
-    }
   }
 
   /**
@@ -295,15 +288,6 @@ export class MessageRouter {
    * Cleanup pending messages and timeouts
    */
   cleanup(): void {
-    for (const [messageId, pending] of this.pendingMessages) {
-      clearTimeout(pending.timeout);
-      pending.reject(new MessageRouterError(
-        'Message router cleanup',
-        'CLEANUP',
-        { messageId }
-      ));
-    }
-    this.pendingMessages.clear();
     this.log('Message router cleanup complete');
   }
 }

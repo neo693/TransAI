@@ -5,7 +5,7 @@ import { existsSync } from 'fs';
 import { join } from 'path';
 
 const projectRoot = process.cwd();
-const distPath = join(projectRoot, 'dist', 'chrome');
+const distPath = join(projectRoot, 'dist');
 
 console.log('🔧 Preparing E2E tests...');
 

@@ -1,7 +1,7 @@
 // Content script for TransAI extension
 import { TextSelector } from './text-selector';
 import { SimpleTranslationOverlay } from './simple-overlay';
-import { TextSelection, MessageType } from '../types/index';
+import { TextSelection, MessageType, LanguageCode } from '../types/index';
 
 
 
@@ -9,6 +9,7 @@ let textSelector: TextSelector | null = null;
 let overlayManager: SimpleTranslationOverlay | null = null;
 let pendingSelection: TextSelection | null = null;
 let overlayTriggerMode: 'auto' | 'manual' = 'auto';
+let messageListenerInitialized = false;
 
 // Initialize content script
 function initializeContentScript() {
@@ -179,7 +180,12 @@ function handleSelectionChange(selection: TextSelection | null) {
 }
 
 // Handle adding words to vocabulary
-function handleAddToVocabulary(word: string, translation: string) {
+function handleAddToVocabulary(
+  word: string,
+  translation: string,
+  sourceLanguage: LanguageCode,
+  targetLanguage: LanguageCode
+) {
   console.log('Adding to vocabulary:', word, '->', translation);
 
   // Send message to background script to add to vocabulary
@@ -191,7 +197,9 @@ function handleAddToVocabulary(word: string, translation: string) {
       word,
       translation,
       context: overlayManager?.getCurrentSelection()?.context || '',
-      sourceUrl: window.location.href
+      sourceUrl: window.location.href,
+      sourceLanguage,
+      targetLanguage
     }
   };
 
@@ -210,7 +218,16 @@ function handleAddToVocabulary(word: string, translation: string) {
 
 // Setup message listener for background script messages
 function setupMessageListener() {
+  if (messageListenerInitialized) {
+    return;
+  }
+
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+    if (message?.type === 'PING' || message?.type === MessageType.PING) {
+      sendResponse({ success: true });
+      return true;
+    }
+
     if (message.type === MessageType.SHOW_TRANSLATION_OVERLAY) {
       if (!overlayManager) {
         console.error('Overlay manager not initialized');
@@ -279,6 +296,8 @@ function setupMessageListener() {
 
     return false;
   });
+
+  messageListenerInitialized = true;
 }
 
 // Handle page visibility changes (e.g., after computer sleep)
@@ -295,6 +314,7 @@ document.addEventListener('visibilitychange', () => {
 async function testConnectionSilently() {
   try {
     const response = await chrome.runtime.sendMessage({
+      id: `ping_visibility_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`,
       type: MessageType.PING,
       timestamp: Date.now()
     });
